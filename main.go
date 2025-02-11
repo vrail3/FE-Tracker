@@ -140,7 +140,7 @@ func (et *ErrorTracking) AddError(err error) {
 	if len(et.Errors) >= et.Threshold && now.Sub(et.LastNotify) > et.Window {
 		msg := fmt.Sprintf("High error rate detected!\nLast error: %v\nTotal errors in last minute: %d",
 			err, len(et.Errors))
-		if err := sendNtfyNotification(os.Getenv("NTFY_TOPIC"), "Error Threshold Reached", msg); err != nil {
+		if err := sendNtfyNotification("Error Threshold Reached", msg); err != nil {
 			log.Printf("Failed to send error notification: %v", err)
 		}
 		et.LastNotify = now
@@ -148,10 +148,13 @@ func (et *ErrorTracking) AddError(err error) {
 	}
 }
 
+// Add global ntfy topic
+var ntfyTopic string
+
 // Add ntfy function
-func sendNtfyNotification(topic, title, message string) error {
+func sendNtfyNotification(title, message string) error {
 	metrics.incrementNtfy()
-	ntfyURL := fmt.Sprintf("https://ntfy.sh/%s", topic)
+	ntfyURL := fmt.Sprintf("https://ntfy.sh/%s", ntfyTopic)
 	req, err := http.NewRequest("POST", ntfyURL, strings.NewReader(message))
 	if err != nil {
 		return fmt.Errorf("creating ntfy request: %v", err)
@@ -214,7 +217,6 @@ type Config struct {
 	GpuModel           string
 	StockCheckInterval string
 	SkuCheckInterval   string
-	NtfyTopic          string
 	ProductURL         string
 	ApiURL             string
 }
@@ -263,7 +265,6 @@ func loadEnvConfig() (Config, error) {
 		GpuModel:           gpuModel,
 		StockCheckInterval: envVars["STOCK_CHECK_INTERVAL"],
 		SkuCheckInterval:   envVars["SKU_CHECK_INTERVAL"],
-		NtfyTopic:          envVars["NTFY_TOPIC"],
 		ProductURL:         envVars["NVIDIA_PRODUCT_URL"],
 		ApiURL:             apiURL,
 	}, nil
@@ -283,14 +284,13 @@ func sendStartupNotification(config Config) error {
 		config.ProductURL)
 
 	return sendNtfyNotification(
-		config.NtfyTopic,
 		"FE Tracker Started",
 		startupMsg,
 	)
 }
 
 // Add function to check inventory
-func checkInventory(sku, locale, ntfyTopic string) error {
+func checkInventory(sku, locale string) error {
 	url := fmt.Sprintf("https://api.store.nvidia.com/partner/v1/feinventory?skus=%s&locale=%s", sku, locale)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -336,7 +336,7 @@ Direct purchase link:
 				item.ProductURL)
 
 			log.Print(msg)
-			return sendNtfyNotification(ntfyTopic, "STOCK FOUND!", msg)
+			return sendNtfyNotification("STOCK FOUND!", msg)
 		}
 	}
 
@@ -356,7 +356,7 @@ func checkSkuStatus(config Config) error {
 			foundFE = true
 			metrics.updateSKU(product.ProductSKU)
 
-			if err := checkInventory(product.ProductSKU, config.Locale, config.NtfyTopic); err != nil {
+			if err := checkInventory(product.ProductSKU, config.Locale); err != nil {
 				log.Printf("Inventory check failed: %v", err)
 			}
 			break
@@ -377,7 +377,7 @@ func cleanup(config Config) {
 		config.Locale,
 		config.GpuModel)
 
-	if err := sendNtfyNotification(config.NtfyTopic, "FE Tracker Stopped", msg); err != nil {
+	if err := sendNtfyNotification("FE Tracker Stopped", msg); err != nil {
 		log.Printf("Failed to send shutdown notification: %v", err)
 	} else {
 		log.Printf("Shutdown notification sent successfully")
@@ -501,6 +501,12 @@ func main() {
 			os.Exit(0)
 		}
 		os.Exit(1)
+	}
+
+	// Set global ntfy topic at startup
+	ntfyTopic = os.Getenv("NTFY_TOPIC")
+	if ntfyTopic == "" {
+		log.Fatal("NTFY_TOPIC environment variable is required")
 	}
 
 	config, err := loadEnvConfig()

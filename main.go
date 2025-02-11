@@ -143,7 +143,7 @@ func (et *ErrorTracking) AddError(err error) {
 		if now.Sub(et.lastErrorNotify) > time.Minute {
 			msg := fmt.Sprintf("High error rate detected!\nLast error: %v\nTotal errors in last minute: %d",
 				err, len(et.Errors))
-			if err := sendNtfyNotification("Error Threshold Reached", msg); err != nil {
+			if err := sendNtfyNotification("Error Threshold Reached", msg, 4); err != nil {
 				log.Printf("Failed to send error notification: %v", err)
 			}
 			et.lastErrorNotify = now
@@ -159,8 +159,11 @@ func (et *ErrorTracking) AddError(err error) {
 // Add global ntfy topic
 var ntfyTopic string
 
-// Add ntfy function
-func sendNtfyNotification(title, message string) error {
+// Add daily report time constant
+const DAILY_REPORT_TIME = "09:00"
+
+// Update ntfy function to handle priorities
+func sendNtfyNotification(title, message string, priority int) error {
 	metrics.incrementNtfy()
 	ntfyURL := fmt.Sprintf("https://ntfy.sh/%s", ntfyTopic)
 	req, err := http.NewRequest("POST", ntfyURL, strings.NewReader(message))
@@ -169,6 +172,7 @@ func sendNtfyNotification(title, message string) error {
 	}
 
 	req.Header.Set("Title", title)
+	req.Header.Set("Priority", fmt.Sprintf("%d", priority))
 	req.Header.Set("Content-Type", "text/plain")
 
 	resp, err := client.Do(req)
@@ -294,6 +298,7 @@ func sendStartupNotification(config Config) error {
 	return sendNtfyNotification(
 		"FE Tracker Started",
 		startupMsg,
+		3,
 	)
 }
 
@@ -344,7 +349,7 @@ Direct purchase link:
 				item.ProductURL)
 
 			log.Print(msg)
-			return sendNtfyNotification("STOCK FOUND!", msg)
+			return sendNtfyNotification("🎯 STOCK FOUND!", msg, 5) // Highest priority
 		}
 	}
 
@@ -384,7 +389,7 @@ func cleanup(config Config) {
 		config.Locale,
 		config.GpuModel)
 
-	if err := sendNtfyNotification("FE Tracker Stopped", msg); err != nil {
+	if err := sendNtfyNotification("FE Tracker Stopped", msg, 3); err != nil {
 		log.Printf("Failed to send shutdown notification: %v", err)
 	} else {
 		log.Printf("Shutdown notification sent successfully")
@@ -497,6 +502,28 @@ func performHealthCheck() bool {
 	return float64(recentErrors)/60.0 < 0.5
 }
 
+// Update daily status report function
+func sendDailyReport() {
+	metrics.mu.Lock()
+	report := fmt.Sprintf(`Daily Status Report
+- Uptime: %s
+- Current SKU: %s
+- API Requests (24h): %d
+- Errors (24h): %d
+- Notifications Sent: %d`,
+		time.Since(metrics.StartTime).Round(time.Second),
+		metrics.CurrentSKU,
+		metrics.ApiRequests,
+		errorTracker.get24hErrorCount(),
+		metrics.NtfySent,
+	)
+	metrics.mu.Unlock()
+
+	if err := sendNtfyNotification("Daily Status Report", report, 3); err != nil {
+		log.Printf("Failed to send daily report: %v", err)
+	}
+}
+
 func main() {
 	// Add command line flag for health check
 	healthCheck := flag.Bool("health-check", false, "Perform health check and exit")
@@ -565,6 +592,21 @@ func main() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Printf("HTTP server error: %v", err)
 			cancel() // Cancel context if server fails
+		}
+	}()
+
+	// Add daily report ticker
+	reportTicker := time.NewTicker(time.Minute)
+	defer reportTicker.Stop()
+
+	go func() {
+		for {
+			now := time.Now()
+			currentTime := now.Format("15:04")
+			if currentTime == DAILY_REPORT_TIME {
+				sendDailyReport()
+			}
+			<-reportTicker.C
 		}
 	}()
 

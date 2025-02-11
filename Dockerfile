@@ -14,13 +14,18 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     -ldflags="-w -s" \
     -o /app/fe-tracker
 
+# Compression stage
+FROM alpine:latest AS compressor
+RUN apk --no-cache add upx
+COPY --from=builder /app/fe-tracker /app/fe-tracker
+RUN upx --best --lzma /app/fe-tracker
+
 # Final stage
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /app/fe-tracker /fe-tracker
+COPY --from=compressor /app/fe-tracker /fe-tracker
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ["/fe-tracker", "-health-check"]
-ENV GODEBUG=http2client=0
 ENTRYPOINT ["/fe-tracker"]

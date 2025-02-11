@@ -15,8 +15,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 // Add response structure
@@ -222,11 +220,7 @@ type Config struct {
 }
 
 func loadEnvConfig() (Config, error) {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: %v", err)
-	}
-
-	log.Println("Environment variables:")
+	log.Println("Loading configuration from environment...")
 
 	// Define required variables
 	envVars := map[string]string{
@@ -238,7 +232,7 @@ func loadEnvConfig() (Config, error) {
 
 	missingVars := []string{}
 
-	// Check all variables in one pass
+	// Check environment variables directly (no .env loading)
 	for key := range envVars {
 		if value := os.Getenv(key); value != "" {
 			envVars[key] = value
@@ -250,7 +244,7 @@ func loadEnvConfig() (Config, error) {
 	}
 
 	if len(missingVars) > 0 {
-		return Config{}, fmt.Errorf("missing required variables: %v", missingVars)
+		return Config{}, fmt.Errorf("missing required environment variables: %v", missingVars)
 	}
 
 	// Parse URL for locale and GPU model
@@ -540,18 +534,15 @@ func main() {
 		}
 	}()
 
+	// Setup routes - only status endpoint
+	http.HandleFunc("/status", handleStatus)
+
 	// Create HTTP server with timeout configs
 	srv := &http.Server{
 		Addr:         ":8080",
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 	}
-
-	// Setup routes
-	http.HandleFunc("/status", handleStatus)
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
 
 	// Start HTTP server in a goroutine
 	wg.Add(1)

@@ -6,7 +6,7 @@ services:
       - "80:8080"
     restart: unless-stopped
     environment:
-      - NVIDIA_PRODUCT_URL: https://marketplace.nvidia.com/de-de/consumer/graphics-cards/nvidia-geforce-rtx-5080/
-      - STOCK_CHECK_INTERVAL: 1000
-      - SKU_CHECK_INTERVAL: 10000
-      - NTFY_TOPIC: example_topic
+      NVIDIA_PRODUCT_URL: "https://marketplace.nvidia.com/de-de/consumer/graphics-cards/nvidia-geforce-rtx-5080/"
+      STOCK_CHECK_INTERVAL: "1000"
+      SKU_CHECK_INTERVAL: "10000"
+      NTFY_TOPIC: "example_topic"

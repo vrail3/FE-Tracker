@@ -48,11 +48,17 @@ type Error struct {
 }
 
 type ErrorTracking struct {
-	Errors     []Error
-	LastNotify time.Time
-	Threshold  int
-	Window     time.Duration
-	mu         sync.Mutex
+	Errors          []Error
+	LastNotify      time.Time
+	Threshold       int
+	Window          time.Duration
+	mu              sync.Mutex
+	lastErrorNotify time.Time // Add new field for error message cooldown
+}
+
+var errorTracker = ErrorTracking{
+	Threshold: 3,           // Notify after 3 errors
+	Window:    time.Minute, // Within 1 minute
 }
 
 // Add method to get 24h error count
@@ -68,11 +74,6 @@ func (et *ErrorTracking) get24hErrorCount() int {
 		}
 	}
 	return count
-}
-
-var errorTracker = ErrorTracking{
-	Threshold: 3,           // Notify after 3 errors
-	Window:    time.Minute, // Within 1 minute
 }
 
 // Add new types for status tracking
@@ -119,7 +120,7 @@ func (m *Metrics) updateSKU(sku string) {
 	m.CurrentSKU = sku
 }
 
-// Update AddError method
+// Update AddError method with cooldown
 func (et *ErrorTracking) AddError(err error) {
 	metrics.incrementErrors()
 	et.mu.Lock()
@@ -136,15 +137,22 @@ func (et *ErrorTracking) AddError(err error) {
 	et.Errors = recent
 	et.Errors = append(et.Errors, Error{Timestamp: now, Err: err})
 
-	// Check if we should notify
+	// Check if we should notify (with 1-minute cooldown)
 	if len(et.Errors) >= et.Threshold && now.Sub(et.LastNotify) > et.Window {
-		msg := fmt.Sprintf("High error rate detected!\nLast error: %v\nTotal errors in last minute: %d",
-			err, len(et.Errors))
-		if err := sendNtfyNotification("Error Threshold Reached", msg); err != nil {
-			log.Printf("Failed to send error notification: %v", err)
+		// Only send notification if cooldown period has passed
+		if now.Sub(et.lastErrorNotify) > time.Minute {
+			msg := fmt.Sprintf("High error rate detected!\nLast error: %v\nTotal errors in last minute: %d",
+				err, len(et.Errors))
+			if err := sendNtfyNotification("Error Threshold Reached", msg); err != nil {
+				log.Printf("Failed to send error notification: %v", err)
+			}
+			et.lastErrorNotify = now
+			et.LastNotify = now
+			et.Errors = nil // Reset after notification
+		} else {
+			log.Printf("Suppressing error notification due to cooldown (last notification: %v ago)",
+				now.Sub(et.lastErrorNotify).Round(time.Second))
 		}
-		et.LastNotify = now
-		et.Errors = nil // Reset after notification
 	}
 }
 
@@ -371,8 +379,7 @@ func checkSkuStatus(config Config) error {
 }
 
 func cleanup(config Config) {
-	msg := fmt.Sprintf(`FE Tracker Stopped
-- Locale: %s
+	msg := fmt.Sprintf(`- Locale: %s
 - GPU Model: %s`,
 		config.Locale,
 		config.GpuModel)

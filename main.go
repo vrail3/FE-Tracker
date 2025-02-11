@@ -120,6 +120,12 @@ func (m *Metrics) updateSKU(sku string) {
 	m.CurrentSKU = sku
 }
 
+func (m *Metrics) updateLastCheck() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.LastStatusCheck = time.Now()
+}
+
 // Update AddError method with cooldown
 func (et *ErrorTracking) AddError(err error) {
 	metrics.incrementErrors()
@@ -189,6 +195,7 @@ func sendNtfyNotification(title, message string, priority int) error {
 
 func makeRequest(url string) (*NvidiaSearchResponse, error) {
 	metrics.incrementApiRequests()
+	metrics.updateLastCheck() // Add this line
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
@@ -303,6 +310,7 @@ func sendStartupNotification(config Config) error {
 
 // Add function to check inventory
 func checkInventory(sku, locale string) error {
+	metrics.updateLastCheck() // Add this line
 	url := fmt.Sprintf("https://api.store.nvidia.com/partner/v1/feinventory?skus=%s&locale=%s", sku, locale)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -484,27 +492,10 @@ func performHealthCheck() bool {
 	metrics.mu.Lock()
 	defer metrics.mu.Unlock()
 
-	now := time.Now()
-	minutesWithoutRequests := now.Sub(metrics.LastStatusCheck).Minutes()
-
-	// Consider healthy if last request was within 5 minutes
-	if minutesWithoutRequests > 5 {
-		log.Printf("Health check failed: No API requests in %.1f minutes", minutesWithoutRequests)
-		return false
-	}
-
-	// Check error rate in last 5 minutes
-	recentErrors := 0
-	for _, err := range errorTracker.Errors {
-		if now.Sub(err.Timestamp) < 5*time.Minute {
-			recentErrors++
-		}
-	}
-
-	// Allow up to 10 errors per minute before considering unhealthy
-	errorRate := float64(recentErrors) / 5.0 // errors per minute
-	if errorRate > 10 {
-		log.Printf("Health check failed: High error rate (%.1f errors/minute)", errorRate)
+	// Simply check if we've had any activity in the last 5 minutes
+	if time.Since(metrics.LastStatusCheck) > 5*time.Minute {
+		log.Printf("Health check failed: Last activity was %.1f minutes ago",
+			time.Since(metrics.LastStatusCheck).Minutes())
 		return false
 	}
 

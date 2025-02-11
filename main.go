@@ -125,7 +125,6 @@ func (m *Metrics) updateLastCheck() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.LastStatusCheck = time.Now()
-	log.Printf("Updated LastStatusCheck: %v", m.LastStatusCheck)
 }
 
 // Update AddError method with cooldown
@@ -491,25 +490,17 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 
 // Update performHealthCheck function
 func performHealthCheck() bool {
-	var lastCheck time.Time
-	var timeSinceLastCheck time.Duration
-
 	metrics.mu.Lock()
-	lastCheck = metrics.LastStatusCheck
+	lastCheck := metrics.LastStatusCheck
 	metrics.mu.Unlock()
 
-	timeSinceLastCheck = time.Since(lastCheck)
-	log.Printf("Health check: Last activity was %v ago (at %v)",
-		timeSinceLastCheck.Round(time.Second),
-		lastCheck.Format("15:04:05"))
-
+	timeSinceLastCheck := time.Since(lastCheck)
 	if timeSinceLastCheck > 5*time.Minute {
-		log.Printf("Health check FAILED: No activity in %.1f minutes",
+		log.Printf("Health check failed: No activity in %.1f minutes",
 			timeSinceLastCheck.Minutes())
 		return false
 	}
 
-	log.Printf("Health check PASSED")
 	return true
 }
 

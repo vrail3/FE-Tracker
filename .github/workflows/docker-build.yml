@@ -70,8 +70,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ github.workflow }}
-          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
+          # Update cache configuration to avoid conflicts
+          cache-from: type=gha,scope=${{ github.ref_name }}-${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ github.workflow }}
           provenance: false
           build-args: |
             BUILDKIT_STEP_LOG_MAX_SIZE=10485760

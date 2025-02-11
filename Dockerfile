@@ -22,7 +22,7 @@ RUN upx --best --lzma /app/fe-tracker
 
 # Final stage, use full debian image for compatibility
 FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=compressor /app/fe-tracker /fe-tracker
 
 

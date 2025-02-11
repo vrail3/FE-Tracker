@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM --platform=$BUILDPLATFORM golang:1.23.6-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS builder
 WORKDIR /src
 RUN apk --no-cache add ca-certificates
 
@@ -21,8 +21,8 @@ COPY --from=builder /app/fe-tracker /app/fe-tracker
 RUN upx --best --lzma /app/fe-tracker
 
 # Final stage, use full debian image for compatibility
-FROM debian:bullseye-slim
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=compressor /app/fe-tracker /fe-tracker
 
 

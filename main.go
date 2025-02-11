@@ -283,8 +283,7 @@ func loadEnvConfig() (Config, error) {
 }
 
 func sendStartupNotification(config Config) error {
-	startupMsg := fmt.Sprintf(`FE Tracker Started
-- Locale: %s
+	startupMsg := fmt.Sprintf(`- Locale: %s
 - GPU Model: %s
 - Stock Check Interval: %s
 - SKU Check Interval: %s
@@ -349,7 +348,7 @@ Direct purchase link:
 				item.ProductURL)
 
 			log.Print(msg)
-			return sendNtfyNotification("🎯 STOCK FOUND!", msg, 5) // Highest priority
+			return sendNtfyNotification("STOCK FOUND!", msg, 5) // Highest priority
 		}
 	}
 
@@ -485,21 +484,31 @@ func performHealthCheck() bool {
 	metrics.mu.Lock()
 	defer metrics.mu.Unlock()
 
-	// Check if we've had any API requests in the last minute
-	if time.Since(metrics.LastStatusCheck) > time.Minute {
+	now := time.Now()
+	minutesWithoutRequests := now.Sub(metrics.LastStatusCheck).Minutes()
+
+	// Consider healthy if last request was within 5 minutes
+	if minutesWithoutRequests > 5 {
+		log.Printf("Health check failed: No API requests in %.1f minutes", minutesWithoutRequests)
 		return false
 	}
 
-	// Check if error rate is acceptable (less than 50% in the last minute)
+	// Check error rate in last 5 minutes
 	recentErrors := 0
-	now := time.Now()
 	for _, err := range errorTracker.Errors {
-		if now.Sub(err.Timestamp) < time.Minute {
+		if now.Sub(err.Timestamp) < 5*time.Minute {
 			recentErrors++
 		}
 	}
 
-	return float64(recentErrors)/60.0 < 0.5
+	// Allow up to 10 errors per minute before considering unhealthy
+	errorRate := float64(recentErrors) / 5.0 // errors per minute
+	if errorRate > 10 {
+		log.Printf("Health check failed: High error rate (%.1f errors/minute)", errorRate)
+		return false
+	}
+
+	return true
 }
 
 // Update daily status report function

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 FROM --platform=$BUILDPLATFORM golang:1.23.6-alpine AS builder
 WORKDIR /src
-#RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates
 
 # Initialize module and build
 COPY main.go .
@@ -15,12 +15,12 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     -o /app/fe-tracker
 
 # Final stage
-FROM --platform=$TARGETOS/$TARGETARCH alpine:3.14
-#COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/fe-tracker /fe-tracker
 
 EXPOSE 8080
-
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ["/fe-tracker", "-health-check"]
+ENV GODEBUG=http2client=0
 ENTRYPOINT ["/fe-tracker"]

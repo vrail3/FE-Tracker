@@ -50,11 +50,26 @@ type Error struct {
 }
 
 type ErrorTracking struct {
-	Errors     []Error // Change from []error to []Error
+	Errors     []Error
 	LastNotify time.Time
 	Threshold  int
 	Window     time.Duration
 	mu         sync.Mutex
+}
+
+// Add method to get 24h error count
+func (et *ErrorTracking) get24hErrorCount() int {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	count := 0
+	now := time.Now()
+	for _, err := range et.Errors {
+		if now.Sub(err.Timestamp) <= 24*time.Hour {
+			count++
+		}
+	}
+	return count
 }
 
 var errorTracker = ErrorTracking{
@@ -416,7 +431,7 @@ func startMonitoring(ctx context.Context, config Config) error {
 	}
 }
 
-// Add status endpoint handler
+// Update handleStatus to show 24h errors
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	metrics.mu.Lock()
 	defer metrics.mu.Unlock()
@@ -426,7 +441,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		Uptime  string `json:"uptime"`
 		Metrics struct {
 			CurrentSKU      string    `json:"current_sku"`
-			ErrorCount      int       `json:"error_count"`
+			ErrorCount24h   int       `json:"error_count_24h"` // Changed from ErrorCount
 			ApiRequests     int       `json:"api_requests_24h"`
 			NtfySent        int       `json:"ntfy_messages_sent"`
 			StartTime       time.Time `json:"start_time"`
@@ -437,14 +452,14 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
 		Metrics: struct {
 			CurrentSKU      string    `json:"current_sku"`
-			ErrorCount      int       `json:"error_count"`
+			ErrorCount24h   int       `json:"error_count_24h"`
 			ApiRequests     int       `json:"api_requests_24h"`
 			NtfySent        int       `json:"ntfy_messages_sent"`
 			StartTime       time.Time `json:"start_time"`
 			LastStatusCheck time.Time `json:"last_status_check"`
 		}{
 			CurrentSKU:      metrics.CurrentSKU,
-			ErrorCount:      metrics.ErrorCount,
+			ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
 			ApiRequests:     metrics.ApiRequests,
 			NtfySent:        metrics.NtfySent,
 			StartTime:       metrics.StartTime,

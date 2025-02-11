@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -42,8 +43,14 @@ var client = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
+// Update Error type to include timestamp
+type Error struct {
+	Timestamp time.Time
+	Err       error
+}
+
 type ErrorTracking struct {
-	Errors     []error
+	Errors     []Error // Change from []error to []Error
 	LastNotify time.Time
 	Threshold  int
 	Window     time.Duration
@@ -99,6 +106,7 @@ func (m *Metrics) updateSKU(sku string) {
 	m.CurrentSKU = sku
 }
 
+// Update AddError method
 func (et *ErrorTracking) AddError(err error) {
 	metrics.incrementErrors()
 	et.mu.Lock()
@@ -106,14 +114,14 @@ func (et *ErrorTracking) AddError(err error) {
 
 	now := time.Now()
 	// Clean old errors
-	recent := []error{}
+	recent := []Error{}
 	for _, e := range et.Errors {
-		if now.Sub(et.LastNotify) < et.Window {
+		if now.Sub(e.Timestamp) < et.Window {
 			recent = append(recent, e)
 		}
 	}
 	et.Errors = recent
-	et.Errors = append(et.Errors, err)
+	et.Errors = append(et.Errors, Error{Timestamp: now, Err: err})
 
 	// Check if we should notify
 	if len(et.Errors) >= et.Threshold && now.Sub(et.LastNotify) > et.Window {
@@ -451,7 +459,41 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Update performHealthCheck function
+func performHealthCheck() bool {
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
+
+	// Check if we've had any API requests in the last minute
+	if time.Since(metrics.LastStatusCheck) > time.Minute {
+		return false
+	}
+
+	// Check if error rate is acceptable (less than 50% in the last minute)
+	recentErrors := 0
+	now := time.Now()
+	for _, err := range errorTracker.Errors {
+		if now.Sub(err.Timestamp) < time.Minute {
+			recentErrors++
+		}
+	}
+
+	return float64(recentErrors)/60.0 < 0.5
+}
+
 func main() {
+	// Add command line flag for health check
+	healthCheck := flag.Bool("health-check", false, "Perform health check and exit")
+	flag.Parse()
+
+	// Handle health check request
+	if *healthCheck {
+		if performHealthCheck() {
+			os.Exit(0)
+		}
+		os.Exit(1)
+	}
+
 	config, err := loadEnvConfig()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)

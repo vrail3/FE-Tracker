@@ -88,7 +88,8 @@ type Metrics struct {
 }
 
 var metrics = Metrics{
-	StartTime: time.Now(),
+	StartTime:       time.Now(),
+	LastStatusCheck: time.Now(), // Initialize LastStatusCheck
 }
 
 func (m *Metrics) incrementApiRequests() {
@@ -124,6 +125,7 @@ func (m *Metrics) updateLastCheck() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.LastStatusCheck = time.Now()
+	log.Printf("Updated LastStatusCheck: %v", m.LastStatusCheck)
 }
 
 // Update AddError method with cooldown
@@ -489,16 +491,25 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 
 // Update performHealthCheck function
 func performHealthCheck() bool {
-	metrics.mu.Lock()
-	defer metrics.mu.Unlock()
+	var lastCheck time.Time
+	var timeSinceLastCheck time.Duration
 
-	// Simply check if we've had any activity in the last 5 minutes
-	if time.Since(metrics.LastStatusCheck) > 5*time.Minute {
-		log.Printf("Health check failed: Last activity was %.1f minutes ago",
-			time.Since(metrics.LastStatusCheck).Minutes())
+	metrics.mu.Lock()
+	lastCheck = metrics.LastStatusCheck
+	metrics.mu.Unlock()
+
+	timeSinceLastCheck = time.Since(lastCheck)
+	log.Printf("Health check: Last activity was %v ago (at %v)",
+		timeSinceLastCheck.Round(time.Second),
+		lastCheck.Format("15:04:05"))
+
+	if timeSinceLastCheck > 5*time.Minute {
+		log.Printf("Health check FAILED: No activity in %.1f minutes",
+			timeSinceLastCheck.Minutes())
 		return false
 	}
 
+	log.Printf("Health check PASSED")
 	return true
 }
 

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 FROM --platform=$BUILDPLATFORM golang:1.23.6-alpine AS builder
 WORKDIR /src
-#RUN apk --no-cache add ca-certificates
+
 
 # Initialize module and build
 COPY main.go .
@@ -24,6 +24,7 @@ RUN upx --best --lzma /app/fe-tracker
 FROM debian:bullseye-slim
 #COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=compressor /app/fe-tracker /fe-tracker
+RUN apk --no-cache add ca-certificates
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

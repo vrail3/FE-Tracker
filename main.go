@@ -507,8 +507,7 @@ func performHealthCheck() bool {
 // Update daily status report function
 func sendDailyReport() {
 	metrics.mu.Lock()
-	report := fmt.Sprintf(`Daily Status Report
-- Uptime: %s
+	report := fmt.Sprintf(`- Uptime: %s
 - Current SKU: %s
 - API Requests (24h): %d
 - Errors (24h): %d
@@ -521,7 +520,7 @@ func sendDailyReport() {
 	)
 	metrics.mu.Unlock()
 
-	if err := sendNtfyNotification("Daily Status Report", report, 3); err != nil {
+	if err := sendNtfyNotification("Status Report", report, 3); err != nil {
 		log.Printf("Failed to send daily report: %v", err)
 	}
 }

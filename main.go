@@ -13,8 +13,10 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -56,11 +58,13 @@ type ErrorTracking struct {
 	Window          time.Duration
 	mu              sync.Mutex
 	lastErrorNotify time.Time // Add new field for error message cooldown
+	maxErrors       int       // Add maximum number of errors to store
 }
 
 var errorTracker = ErrorTracking{
 	Threshold: 3,           // Notify after 3 errors
 	Window:    time.Minute, // Within 1 minute
+	maxErrors: 1000,        // Limit error history
 }
 
 // Add method to get 24h error count
@@ -147,14 +151,18 @@ func (et *ErrorTracking) AddError(err error) {
 
 	now := time.Now()
 	// Clean old errors
-	recent := []Error{}
+	recent := make([]Error, 0, et.maxErrors)
 	for _, e := range et.Errors {
 		if now.Sub(e.Timestamp) < et.Window {
 			recent = append(recent, e)
 		}
 	}
+
+	// Add new error if under limit
+	if len(recent) < et.maxErrors {
+		recent = append(recent, Error{Timestamp: now, Err: err})
+	}
 	et.Errors = recent
-	et.Errors = append(et.Errors, Error{Timestamp: now, Err: err})
 
 	// Check if we should notify (with 1-minute cooldown)
 	if len(et.Errors) >= et.Threshold && now.Sub(et.LastNotify) > et.Window {
@@ -544,8 +552,24 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(status)
 }
 
-// Update handleEvents for more reliable connection
+// Add connection tracking
+var (
+	activeConnections sync.Map
+	connectionID      uint64
+	connectionMutex   sync.Mutex
+)
+
+// Update handleEvents to track connections
 func handleEvents(w http.ResponseWriter, r *http.Request) {
+	// Generate unique connection ID
+	connectionMutex.Lock()
+	connID := atomic.AddUint64(&connectionID, 1)
+	connectionMutex.Unlock()
+
+	// Store connection in active connections map
+	activeConnections.Store(connID, time.Now())
+	defer activeConnections.Delete(connID)
+
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -575,23 +599,48 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 	// Immediately send first data update
 	sendStatusUpdate(w)
 
-	// Send updates
+	// Create cleanup ticker
+	cleanupTicker := time.NewTicker(30 * time.Second)
+	defer cleanupTicker.Stop()
+
+	// Create done channel for cleanup
+	doneCleanup := make(chan struct{})
+	defer close(doneCleanup)
+
+	// Start cleanup goroutine
+	go func() {
+		for {
+			select {
+			case <-doneCleanup:
+				return
+			case <-cleanupTicker.C:
+				runtime.GC() // Suggest garbage collection
+			}
+		}
+	}()
+
+	// Send updates with connection monitoring
 	for {
 		select {
 		case <-done:
 			return
+		case <-cleanupTicker.C:
+			// Update last active time
+			activeConnections.Store(connID, time.Now())
 		case <-pingTicker.C:
-			// Send keep-alive ping
-			fmt.Fprint(w, ": ping\n\n")
-			w.(http.Flusher).Flush()
+			if err := sendPing(w); err != nil {
+				return
+			}
 		case <-ticker.C:
-			sendStatusUpdate(w)
+			if err := sendStatusUpdate(w); err != nil {
+				return
+			}
 		}
 	}
 }
 
 // Helper function to send status update
-func sendStatusUpdate(w http.ResponseWriter) {
+func sendStatusUpdate(w http.ResponseWriter) error {
 	metrics.mu.Lock()
 	status := struct {
 		Status  string `json:"status"`
@@ -631,10 +680,21 @@ func sendStatusUpdate(w http.ResponseWriter) {
 	if data, err := json.Marshal(status); err == nil {
 		if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
 			log.Printf("Error sending event: %v", err)
-			return
+			return err
 		}
+		w.(http.Flusher).Flush()
+	}
+	return nil
+}
+
+// Add helper functions for sending data
+func sendPing(w http.ResponseWriter) error {
+	_, err := fmt.Fprint(w, ": ping\n\n")
+	if err != nil {
+		return err
 	}
 	w.(http.Flusher).Flush()
+	return nil
 }
 
 // Update performHealthCheck function
@@ -773,6 +833,22 @@ func main() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP server error: %v", err)
 			cancel() // Cancel context if server fails
+		}
+	}()
+
+	// Add connection cleanup routine
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			now := time.Now()
+			activeConnections.Range(func(key, value interface{}) bool {
+				if lastActive, ok := value.(time.Time); ok {
+					if now.Sub(lastActive) > 10*time.Minute {
+						activeConnections.Delete(key)
+					}
+				}
+				return true
+			})
 		}
 	}()
 

@@ -86,6 +86,7 @@ type Metrics struct {
 	NtfySent        int       `json:"ntfy_messages_sent"`
 	StartTime       time.Time `json:"start_time"`
 	LastStatusCheck time.Time `json:"last_status_check"`
+	PurchaseURL     string    `json:"purchase_url"`
 	mu              sync.Mutex
 }
 
@@ -122,6 +123,13 @@ func (m *Metrics) updateSKU(sku string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.CurrentSKU = sku
+}
+
+// Add method to update purchase URL
+func (m *Metrics) updatePurchaseURL(url string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.PurchaseURL = url
 }
 
 // Simplify updateLastCheck
@@ -355,6 +363,9 @@ func checkInventory(ctx context.Context, sku, locale string) error {
 	if len(inventory.ListMap) > 0 {
 		item := inventory.ListMap[0]
 		if item.IsActive != "false" {
+			// Update purchase URL in metrics
+			metrics.updatePurchaseURL(item.ProductURL)
+
 			msg := fmt.Sprintf(`RTX %s IN STOCK!
 SKU: %s
 
@@ -371,6 +382,8 @@ Direct purchase link:
 		}
 	}
 
+	// Clear purchase URL if not available
+	metrics.updatePurchaseURL("")
 	return nil
 }
 
@@ -502,6 +515,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			NtfySent        int       `json:"ntfy_messages_sent"`
 			StartTime       time.Time `json:"start_time"`
 			LastStatusCheck time.Time `json:"last_status_check"`
+			PurchaseURL     string    `json:"purchase_url"`
 		} `json:"metrics"`
 	}{
 		Status: "running",
@@ -513,6 +527,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			NtfySent        int       `json:"ntfy_messages_sent"`
 			StartTime       time.Time `json:"start_time"`
 			LastStatusCheck time.Time `json:"last_status_check"`
+			PurchaseURL     string    `json:"purchase_url"`
 		}{
 			CurrentSKU:      metrics.CurrentSKU,
 			ErrorCount24h:   errorTracker.get24hErrorCount(),
@@ -520,6 +535,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			NtfySent:        metrics.NtfySent,
 			StartTime:       metrics.StartTime,
 			LastStatusCheck: metrics.LastStatusCheck,
+			PurchaseURL:     metrics.PurchaseURL,
 		},
 	}
 	metrics.mu.Unlock()
@@ -559,6 +575,7 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 					NtfySent        int       `json:"ntfy_messages_sent"`
 					StartTime       time.Time `json:"start_time"`
 					LastStatusCheck time.Time `json:"last_status_check"`
+					PurchaseURL     string    `json:"purchase_url"`
 				} `json:"metrics"`
 			}{
 				Status: "running",
@@ -570,6 +587,7 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 					NtfySent        int       `json:"ntfy_messages_sent"`
 					StartTime       time.Time `json:"start_time"`
 					LastStatusCheck time.Time `json:"last_status_check"`
+					PurchaseURL     string    `json:"purchase_url"`
 				}{
 					CurrentSKU:      metrics.CurrentSKU,
 					ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
@@ -577,6 +595,7 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 					NtfySent:        metrics.NtfySent,
 					StartTime:       metrics.StartTime,
 					LastStatusCheck: metrics.LastStatusCheck,
+					PurchaseURL:     metrics.PurchaseURL,
 				},
 			}
 			metrics.mu.Unlock()

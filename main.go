@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -194,10 +195,12 @@ func sendNtfyNotification(title, message string, priority int) error {
 	return nil
 }
 
-func makeRequest(url string) (*NvidiaSearchResponse, error) {
+// Update makeRequest to accept context
+func makeRequest(ctx context.Context, url string) (*NvidiaSearchResponse, error) {
 	metrics.incrementApiRequests()
-	metrics.updateLastCheck() // Add this line
-	req, err := http.NewRequest("GET", url, nil)
+	metrics.updateLastCheck()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
 	}
@@ -309,12 +312,12 @@ func sendStartupNotification(config Config) error {
 	)
 }
 
-// Add function to check inventory
-func checkInventory(sku, locale string) error {
+// Update checkInventory to accept context
+func checkInventory(ctx context.Context, sku, locale string) error {
 	metrics.updateLastCheck() // Add this line
 	url := fmt.Sprintf("https://api.store.nvidia.com/partner/v1/feinventory?skus=%s&locale=%s", sku, locale)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("creating inventory request: %v", err)
 	}
@@ -364,9 +367,9 @@ Direct purchase link:
 	return nil
 }
 
-// Update checkSkuStatus to also check inventory when SKU is found
-func checkSkuStatus(config Config) error {
-	response, err := makeRequest(config.ApiURL)
+// Update checkSkuStatus to accept and use context
+func checkSkuStatus(ctx context.Context, config Config) error {
+	response, err := makeRequest(ctx, config.ApiURL)
 	if err != nil {
 		return fmt.Errorf("API request failed: %v", err)
 	}
@@ -377,7 +380,7 @@ func checkSkuStatus(config Config) error {
 			foundFE = true
 			metrics.updateSKU(product.ProductSKU)
 
-			if err := checkInventory(product.ProductSKU, config.Locale); err != nil {
+			if err := checkInventory(ctx, product.ProductSKU, config.Locale); err != nil {
 				log.Printf("Inventory check failed: %v", err)
 			}
 			break
@@ -424,23 +427,41 @@ func startMonitoring(ctx context.Context, config Config) error {
 	defer stockTicker.Stop()
 	defer skuTicker.Stop()
 
+	// Create error channel for goroutine errors
+	errChan := make(chan error, 1)
+
 	// Ensure cleanup runs on exit
 	defer cleanup(config)
 
 	// Monitoring loop
 	for {
 		select {
-		case <-stockTicker.C:
-			if err := checkSkuStatus(config); err != nil {
-				log.Printf("Check failed: %v", err)
-			}
-		case <-skuTicker.C:
-			if err := checkSkuStatus(config); err != nil {
-				log.Printf("SKU check failed: %v", err)
-			}
 		case <-ctx.Done():
-			log.Printf("Monitoring stopped")
-			return nil
+			return ctx.Err()
+		case err := <-errChan:
+			return fmt.Errorf("monitoring error: %v", err)
+		case <-stockTicker.C:
+			// Use goroutine for stock check to prevent blocking
+			go func() {
+				if err := checkSkuStatus(ctx, config); err != nil {
+					select {
+					case errChan <- err:
+					default:
+						log.Printf("Check failed: %v", err)
+					}
+				}
+			}()
+		case <-skuTicker.C:
+			// Use goroutine for SKU check to prevent blocking
+			go func() {
+				if err := checkSkuStatus(ctx, config); err != nil {
+					select {
+					case errChan <- err:
+					default:
+						log.Printf("SKU check failed: %v", err)
+					}
+				}
+			}()
 		}
 	}
 }
@@ -554,7 +575,7 @@ func main() {
 		log.Printf("Failed to send startup notification: %v", err)
 	}
 
-	// Create a context with cancellation for coordinated shutdown
+	// Create base context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -569,9 +590,9 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := startMonitoring(ctx, config); err != nil {
+		if err := startMonitoring(ctx, config); err != nil && !errors.Is(err, context.Canceled) {
 			log.Printf("Monitoring failed: %v", err)
-			cancel() // Cancel context if monitoring fails
+			cancel() // Cancel context if monitoring fails with non-cancellation error
 		}
 	}()
 

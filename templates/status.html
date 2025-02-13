@@ -312,7 +312,8 @@
             font-weight: 600;
             color: var(--label-color);
             flex: 0 0 140px; /* Fixed width, no grow, no shrink */
-            margin-right: 1.5rem; /* Use margin instead of gap */
+            margin-right: 1rem; /* Reduced spacing */
+            white-space: nowrap; /* Prevent label wrapping */
         }
 
         .metric-value {
@@ -325,8 +326,9 @@
         /* Mobile adjustments */
         @media (max-width: 767px) {
             .metric-label {
-                flex: 0 0 120px; /* Slightly smaller on mobile */
+                flex: 0 0 110px; /* Even smaller on mobile */
                 font-size: 0.9rem;
+                margin-right: 0.75rem; /* Tighter spacing on mobile */
             }
 
             .metric-value {
@@ -335,6 +337,15 @@
 
             .metric-row {
                 margin-bottom: 0.5rem;
+            }
+
+            /* Special handling for status card */
+            .status-card .metric-row {
+                margin-bottom: 0.25rem; /* Tighter spacing in status card */
+            }
+
+            .status-card .metric-row:last-child {
+                margin-bottom: 0; /* Remove margin from last row */
             }
         }
     </style>
@@ -352,7 +363,7 @@
         </button>
     </div>
 
-    <div class="card">
+    <div class="card status-card">
         <h1>FE Tracker Status</h1>
         <div class="metric-row">
             <span class="metric-label">Status:</span>

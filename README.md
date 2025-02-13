@@ -30,7 +30,7 @@ A robust stock tracking service for NVIDIA Founders Edition graphics cards with 
      STOCK_CHECK_INTERVAL: "1000"  # milliseconds
      SKU_CHECK_INTERVAL: "10000"   # milliseconds
      NTFY_TOPIC: "your-topic"
-     TIMEZONE: "Europe/Berlin"
+     TZ: "Europe/Berlin"
    ```
 
 3. Run with Docker:

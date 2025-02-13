@@ -25,7 +25,7 @@ RUN upx --best --lzma /app/fe-tracker
 FROM scratch
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /usr/share/zoneinfo/ /usr/share/zoneinfo/
 COPY --from=builder /src/templates/ templates/
 COPY --from=compressor /app/fe-tracker .
 

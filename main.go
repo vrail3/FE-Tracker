@@ -89,10 +89,10 @@ type Metrics struct {
 	mu              sync.Mutex
 }
 
-// Update metrics initialization to use UTC initially
+// Initialize metrics with local time
 var metrics = Metrics{
-	StartTime:       time.Now().UTC(),
-	LastStatusCheck: time.Now().UTC(),
+	StartTime:       time.Now(),
+	LastStatusCheck: time.Now(),
 }
 
 func (m *Metrics) incrementApiRequests() {
@@ -124,19 +124,20 @@ func (m *Metrics) updateSKU(sku string) {
 	m.CurrentSKU = sku
 }
 
-func (m *Metrics) updateLastCheck(location *time.Location) {
+// Simplify updateLastCheck
+func (m *Metrics) updateLastCheck() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.LastStatusCheck = time.Now().In(location)
+	m.LastStatusCheck = time.Now()
 }
 
 // Update AddError method with cooldown
-func (et *ErrorTracking) AddError(err error, location *time.Location) {
+func (et *ErrorTracking) AddError(err error) {
 	metrics.incrementErrors()
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	now := time.Now().In(location)
+	now := time.Now()
 	// Clean old errors
 	recent := []Error{}
 	for _, e := range et.Errors {
@@ -201,9 +202,9 @@ func sendNtfyNotification(title, message string, priority int) error {
 }
 
 // Update makeRequest to accept context and timezone
-func makeRequest(ctx context.Context, url string, location *time.Location) (*NvidiaSearchResponse, error) {
+func makeRequest(ctx context.Context, url string) (*NvidiaSearchResponse, error) {
 	metrics.incrementApiRequests()
-	metrics.updateLastCheck(location)
+	metrics.updateLastCheck()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -218,7 +219,7 @@ func makeRequest(ctx context.Context, url string, location *time.Location) (*Nvi
 
 	resp, err := client.Do(req)
 	if err != nil {
-		errorTracker.AddError(err, location) // Track the error
+		errorTracker.AddError(err) // Track the error
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
@@ -247,9 +248,9 @@ type Config struct {
 	SkuCheckInterval   string
 	ProductURL         string
 	ApiURL             string
-	TimeZone           *time.Location // Add timezone
 }
 
+// Remove timezone loading from loadEnvConfig
 func loadEnvConfig() (Config, error) {
 	log.Println("Loading configuration from environment...")
 
@@ -259,7 +260,6 @@ func loadEnvConfig() (Config, error) {
 		"STOCK_CHECK_INTERVAL": "",
 		"SKU_CHECK_INTERVAL":   "",
 		"NTFY_TOPIC":           "",
-		"TIMEZONE":             "Europe/Berlin", // Default timezone
 	}
 
 	missingVars := []string{}
@@ -290,18 +290,6 @@ func loadEnvConfig() (Config, error) {
 	apiURL := fmt.Sprintf("https://api.nvidia.partners/edge/product/search?page=1&limit=12&locale=%s&gpu=RTX%%20%s",
 		locale, gpuModel)
 
-	// Load timezone
-	timezone := os.Getenv("TIMEZONE")
-	if timezone == "" {
-		timezone = envVars["TIMEZONE"]
-		log.Printf("Using default timezone: %s", timezone)
-	}
-
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return Config{}, fmt.Errorf("invalid timezone %s: %v", timezone, err)
-	}
-
 	return Config{
 		Locale:             locale,
 		GpuModel:           gpuModel,
@@ -309,7 +297,6 @@ func loadEnvConfig() (Config, error) {
 		SkuCheckInterval:   envVars["SKU_CHECK_INTERVAL"],
 		ProductURL:         envVars["NVIDIA_PRODUCT_URL"],
 		ApiURL:             apiURL,
-		TimeZone:           location,
 	}, nil
 }
 
@@ -333,8 +320,8 @@ func sendStartupNotification(config Config) error {
 }
 
 // Update checkInventory to accept context and timezone
-func checkInventory(ctx context.Context, sku, locale string, location *time.Location) error {
-	metrics.updateLastCheck(location) // Add this line
+func checkInventory(ctx context.Context, sku, locale string) error {
+	metrics.updateLastCheck() // Add this line
 	url := fmt.Sprintf("https://api.store.nvidia.com/partner/v1/feinventory?skus=%s&locale=%s", sku, locale)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -389,7 +376,7 @@ Direct purchase link:
 
 // Update checkSkuStatus to accept and use context and timezone
 func checkSkuStatus(ctx context.Context, config Config) error {
-	response, err := makeRequest(ctx, config.ApiURL, config.TimeZone)
+	response, err := makeRequest(ctx, config.ApiURL)
 	if err != nil {
 		return fmt.Errorf("API request failed: %v", err)
 	}
@@ -400,7 +387,7 @@ func checkSkuStatus(ctx context.Context, config Config) error {
 			foundFE = true
 			metrics.updateSKU(product.ProductSKU)
 
-			if err := checkInventory(ctx, product.ProductSKU, config.Locale, config.TimeZone); err != nil {
+			if err := checkInventory(ctx, product.ProductSKU, config.Locale); err != nil {
 				log.Printf("Inventory check failed: %v", err)
 			}
 			break
@@ -460,7 +447,7 @@ func startMonitoring(ctx context.Context, config Config) error {
 
 	go func() {
 		for {
-			now := time.Now().In(config.TimeZone)
+			now := time.Now()
 			currentTime := now.Format("15:04")
 			if currentTime == DAILY_REPORT_TIME {
 				sendDailyReport()
@@ -503,7 +490,7 @@ func startMonitoring(ctx context.Context, config Config) error {
 }
 
 // Update handleStatus to support both JSON and HTML and use timezone
-func handleStatus(w http.ResponseWriter, r *http.Request, location *time.Location) {
+func handleStatus(w http.ResponseWriter, r *http.Request) {
 	metrics.mu.Lock()
 	status := struct {
 		Status  string `json:"status"`
@@ -518,7 +505,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request, location *time.Locatio
 		} `json:"metrics"`
 	}{
 		Status: "running",
-		Uptime: time.Since(metrics.StartTime.In(location)).Round(time.Second).String(),
+		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
 		Metrics: struct {
 			CurrentSKU      string    `json:"current_sku"`
 			ErrorCount24h   int       `json:"error_count_24h"`
@@ -531,8 +518,8 @@ func handleStatus(w http.ResponseWriter, r *http.Request, location *time.Locatio
 			ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
 			ApiRequests:     metrics.ApiRequests,
 			NtfySent:        metrics.NtfySent,
-			StartTime:       metrics.StartTime.In(location),
-			LastStatusCheck: metrics.LastStatusCheck.In(location),
+			StartTime:       metrics.StartTime,
+			LastStatusCheck: metrics.LastStatusCheck,
 		},
 	}
 	metrics.mu.Unlock()
@@ -553,7 +540,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request, location *time.Locatio
 }
 
 // Add SSE handler for live updates and use timezone
-func handleEvents(w http.ResponseWriter, r *http.Request, location *time.Location) {
+func handleEvents(w http.ResponseWriter, r *http.Request) {
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -586,7 +573,7 @@ func handleEvents(w http.ResponseWriter, r *http.Request, location *time.Locatio
 				} `json:"metrics"`
 			}{
 				Status: "running",
-				Uptime: time.Since(metrics.StartTime.In(location)).Round(time.Second).String(),
+				Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
 				Metrics: struct {
 					CurrentSKU      string    `json:"current_sku"`
 					ErrorCount24h   int       `json:"error_count_24h"`
@@ -599,8 +586,8 @@ func handleEvents(w http.ResponseWriter, r *http.Request, location *time.Locatio
 					ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
 					ApiRequests:     metrics.ApiRequests,
 					NtfySent:        metrics.NtfySent,
-					StartTime:       metrics.StartTime.In(location),
-					LastStatusCheck: metrics.LastStatusCheck.In(location),
+					StartTime:       metrics.StartTime,
+					LastStatusCheck: metrics.LastStatusCheck,
 				},
 			}
 			metrics.mu.Unlock()
@@ -654,6 +641,12 @@ func sendDailyReport() {
 	}
 }
 
+// Add log format with timezone
+func setupLogger() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	log.SetPrefix(time.Now().Format("MST "))
+}
+
 func main() {
 	// Add command line flag for health check
 	healthCheck := flag.Bool("health-check", false, "Perform health check and exit")
@@ -677,6 +670,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
+
+	// Setup logger with timezone
+	setupLogger()
+	log.Printf("Timezone set to: %s", time.Now().Format("MST"))
 
 	// Send startup notification
 	if err := sendStartupNotification(config); err != nil {
@@ -709,12 +706,8 @@ func main() {
 		http.Redirect(w, r, "/status", http.StatusFound)
 	})
 	// Update HTTP handlers to include timezone
-	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		handleStatus(w, r, config.TimeZone)
-	})
-	http.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
-		handleEvents(w, r, config.TimeZone)
-	})
+	http.HandleFunc("/status", handleStatus)
+	http.HandleFunc("/events", handleEvents)
 
 	// Create HTTP server with timeout configs
 	srv := &http.Server{
@@ -734,18 +727,22 @@ func main() {
 		}
 	}()
 
-	// Add daily report ticker
+	// Update daily report ticker to use config timezone
 	reportTicker := time.NewTicker(time.Minute)
 	defer reportTicker.Stop()
 
 	go func() {
 		for {
-			now := time.Now()
-			currentTime := now.Format("15:04")
-			if currentTime == DAILY_REPORT_TIME {
-				sendDailyReport()
+			select {
+			case <-ctx.Done():
+				return
+			case <-reportTicker.C:
+				now := time.Now()
+				currentTime := now.Format("15:04")
+				if currentTime == DAILY_REPORT_TIME {
+					sendDailyReport()
+				}
 			}
-			<-reportTicker.C
 		}
 	}()
 

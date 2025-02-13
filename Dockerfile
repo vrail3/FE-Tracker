@@ -28,7 +28,7 @@ WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo/ /usr/share/zoneinfo/
 COPY --from=builder /src/templates/ templates/
-COPY --from=builder static/ static/
+COPY --from=builder /src/static/ static/
 COPY --from=compressor /app/fe-tracker .
 
 EXPOSE 8080

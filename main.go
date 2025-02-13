@@ -641,10 +641,11 @@ func sendDailyReport() {
 	}
 }
 
-// Add log format with timezone
+// Update log format to be simpler
 func setupLogger() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-	log.SetPrefix(time.Now().Format("MST "))
+	// Only show date and time, no microseconds or timezone prefix
+	log.SetFlags(log.Ldate | log.Ltime)
+	// Remove previous SetPrefix call
 }
 
 func main() {
@@ -671,9 +672,8 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Setup logger with timezone
+	// Setup logger
 	setupLogger()
-	log.Printf("Timezone set to: %s", time.Now().Format("MST"))
 
 	// Send startup notification
 	if err := sendStartupNotification(config); err != nil {

@@ -489,7 +489,7 @@ func startMonitoring(ctx context.Context, config Config) error {
 	}
 }
 
-// Update handleStatus to support both JSON and HTML and use timezone
+// Update handleStatus to only return JSON
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	metrics.mu.Lock()
 	status := struct {
@@ -497,46 +497,19 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		Uptime  string `json:"uptime"`
 		Metrics struct {
 			CurrentSKU      string    `json:"current_sku"`
-			ErrorCount24h   int       `json:"error_count_24h"` // Changed from ErrorCount
+			ErrorCount24h   int       `json:"error_count_24h"`
 			ApiRequests     int       `json:"api_requests_24h"`
 			NtfySent        int       `json:"ntfy_messages_sent"`
 			StartTime       time.Time `json:"start_time"`
 			LastStatusCheck time.Time `json:"last_status_check"`
 		} `json:"metrics"`
 	}{
-		Status: "running",
-		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
-		Metrics: struct {
-			CurrentSKU      string    `json:"current_sku"`
-			ErrorCount24h   int       `json:"error_count_24h"`
-			ApiRequests     int       `json:"api_requests_24h"`
-			NtfySent        int       `json:"ntfy_messages_sent"`
-			StartTime       time.Time `json:"start_time"`
-			LastStatusCheck time.Time `json:"last_status_check"`
-		}{
-			CurrentSKU:      metrics.CurrentSKU,
-			ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
-			ApiRequests:     metrics.ApiRequests,
-			NtfySent:        metrics.NtfySent,
-			StartTime:       metrics.StartTime,
-			LastStatusCheck: metrics.LastStatusCheck,
-		},
+		// ...existing struct initialization...
 	}
 	metrics.mu.Unlock()
 
-	// Check Accept header for HTML requests
-	if strings.Contains(r.Header.Get("Accept"), "text/html") {
-		if err := templates.ExecuteTemplate(w, "status.html", status); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		return
-	}
-
-	// Default to JSON response
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(status); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-	}
+	json.NewEncoder(w).Encode(status)
 }
 
 // Add SSE handler for live updates and use timezone
@@ -701,23 +674,16 @@ func main() {
 		}
 	}()
 
-	// Setup routes - serve HTML on root, JSON on /status
+	// Update route handlers to be more explicit
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		if err := templates.ExecuteTemplate(w, "status.html", nil); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		templates.ExecuteTemplate(w, "status.html", nil)
 	})
 
-	// Keep /status as JSON API only
-	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		handleStatus(w, r)
-	})
-
+	http.HandleFunc("/status", handleStatus)
 	http.HandleFunc("/events", handleEvents)
 
 	// Create HTTP server with timeout configs

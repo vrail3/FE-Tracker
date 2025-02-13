@@ -3,8 +3,9 @@ FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS builder
 WORKDIR /src
 RUN apk --no-cache add ca-certificates
 
-# Initialize module and build
+# Copy all necessary files
 COPY main.go .
+COPY templates/ templates/
 RUN go mod init fe-tracker
 
 # Build the application
@@ -20,13 +21,14 @@ RUN apk --no-cache add upx
 COPY --from=builder /app/fe-tracker /app/fe-tracker
 RUN upx --best --lzma /app/fe-tracker
 
-# Final stage, use full debian image for compatibility
+# Final stage
 FROM scratch
+WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=compressor /app/fe-tracker /fe-tracker
-
+COPY --from=compressor /app/fe-tracker .
+COPY --from=builder /src/templates/ templates/
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["/fe-tracker", "-health-check"]
-ENTRYPOINT ["/fe-tracker"]
+    CMD ["/app/fe-tracker", "-health-check"]
+ENTRYPOINT ["/app/fe-tracker"]

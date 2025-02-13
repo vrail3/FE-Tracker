@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -169,6 +170,9 @@ var ntfyTopic string
 
 // Add daily report time constant
 const DAILY_REPORT_TIME = "09:00"
+
+// Add template caching
+var templates = template.Must(template.ParseFiles("templates/status.html"))
 
 // Update ntfy function to handle priorities
 func sendNtfyNotification(title, message string, priority int) error {
@@ -497,11 +501,9 @@ func startMonitoring(ctx context.Context, config Config) error {
 	}
 }
 
-// Update handleStatus to show 24h errors
+// Update handleStatus to support both JSON and HTML
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	metrics.mu.Lock()
-	defer metrics.mu.Unlock()
-
 	status := struct {
 		Status  string `json:"status"`
 		Uptime  string `json:"uptime"`
@@ -532,11 +534,85 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			LastStatusCheck: metrics.LastStatusCheck,
 		},
 	}
+	metrics.mu.Unlock()
 
+	// Check Accept header for HTML requests
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		if err := templates.ExecuteTemplate(w, "status.html", status); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Default to JSON response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(status); err != nil {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		return
+	}
+}
+
+// Add SSE handler for live updates
+func handleEvents(w http.ResponseWriter, r *http.Request) {
+	// Set headers for SSE
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	// Create channel for client disconnect detection
+	done := r.Context().Done()
+
+	// Create ticker for updates
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	// Send updates
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			metrics.mu.Lock()
+			status := struct {
+				Status  string `json:"status"`
+				Uptime  string `json:"uptime"`
+				Metrics struct {
+					CurrentSKU      string    `json:"current_sku"`
+					ErrorCount24h   int       `json:"error_count_24h"` // Changed from ErrorCount
+					ApiRequests     int       `json:"api_requests_24h"`
+					NtfySent        int       `json:"ntfy_messages_sent"`
+					StartTime       time.Time `json:"start_time"`
+					LastStatusCheck time.Time `json:"last_status_check"`
+				} `json:"metrics"`
+			}{
+				Status: "running",
+				Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+				Metrics: struct {
+					CurrentSKU      string    `json:"current_sku"`
+					ErrorCount24h   int       `json:"error_count_24h"`
+					ApiRequests     int       `json:"api_requests_24h"`
+					NtfySent        int       `json:"ntfy_messages_sent"`
+					StartTime       time.Time `json:"start_time"`
+					LastStatusCheck time.Time `json:"last_status_check"`
+				}{
+					CurrentSKU:      metrics.CurrentSKU,
+					ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
+					ApiRequests:     metrics.ApiRequests,
+					NtfySent:        metrics.NtfySent,
+					StartTime:       metrics.StartTime,
+					LastStatusCheck: metrics.LastStatusCheck,
+				},
+			}
+			metrics.mu.Unlock()
+
+			data, err := json.Marshal(status)
+			if err != nil {
+				log.Printf("Error marshaling SSE data: %v", err)
+				continue
+			}
+
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			w.(http.Flusher).Flush()
+		}
 	}
 }
 
@@ -627,8 +703,12 @@ func main() {
 		}
 	}()
 
-	// Setup routes - only status endpoint
+	// Setup routes
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/status", http.StatusFound)
+	})
 	http.HandleFunc("/status", handleStatus)
+	http.HandleFunc("/events", handleEvents)
 
 	// Create HTTP server with timeout configs
 	srv := &http.Server{

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FE Tracker Status</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+        .status-ok { color: #2ecc71; }
+        .status-error { color: #e74c3c; }
+        .metric-label {
+            font-weight: bold;
+            color: #34495e;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>FE Tracker Status</h1>
+        <p><span class="metric-label">Status:</span> <span id="status" class="status-ok">loading...</span></p>
+        <p><span class="metric-label">Uptime:</span> <span id="uptime">loading...</span></p>
+    </div>
+    
+    <div class="card">
+        <h2>Metrics</h2>
+        <p><span class="metric-label">Current SKU:</span> <span id="currentSku">loading...</span></p>
+        <p><span class="metric-label">Errors (24h):</span> <span id="errorCount">loading...</span></p>
+        <p><span class="metric-label">API Requests (24h):</span> <span id="apiRequests">loading...</span></p>
+        <p><span class="metric-label">Notifications Sent:</span> <span id="ntfySent">loading...</span></p>
+        <p><span class="metric-label">Start Time:</span> <span id="startTime">loading...</span></p>
+        <p><span class="metric-label">Last Check:</span> <span id="lastCheck">loading...</span></p>
+    </div>
+
+    <script>
+        const sse = new EventSource('/events');
+        
+        sse.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            document.getElementById('status').textContent = data.status;
+            document.getElementById('uptime').textContent = data.uptime;
+            document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
+            document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
+            document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
+            document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
+            document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
+            document.getElementById('lastCheck').textContent = new Date(data.metrics.last_status_check).toLocaleString();
+        };
+
+        sse.onerror = () => {
+            document.getElementById('status').textContent = 'disconnected';
+            document.getElementById('status').className = 'status-error';
+        };
+    </script>
+</body>
+</html>

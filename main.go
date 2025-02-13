@@ -701,12 +701,23 @@ func main() {
 		}
 	}()
 
-	// Setup routes
+	// Setup routes - serve HTML on root, JSON on /status
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/status", http.StatusFound)
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		if err := templates.ExecuteTemplate(w, "status.html", nil); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	})
-	// Update HTTP handlers to include timezone
-	http.HandleFunc("/status", handleStatus)
+
+	// Keep /status as JSON API only
+	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		handleStatus(w, r)
+	})
+
 	http.HandleFunc("/events", handleEvents)
 
 	// Create HTTP server with timeout configs

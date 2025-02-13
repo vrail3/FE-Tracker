@@ -39,7 +39,6 @@
         <p><span class="metric-label">API Requests (24h):</span> <span id="apiRequests">loading...</span></p>
         <p><span class="metric-label">Notifications Sent:</span> <span id="ntfySent">loading...</span></p>
         <p><span class="metric-label">Start Time:</span> <span id="startTime">loading...</span></p>
-        <p><span class="metric-label">Last Check:</span> <span id="lastCheck">loading...</span></p>
     </div>
 
     <script>
@@ -54,7 +53,6 @@
             document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
             document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
             document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
-            document.getElementById('lastCheck').textContent = new Date(data.metrics.last_status_check).toLocaleString();
         };
 
         sse.onerror = () => {

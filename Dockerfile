@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS builder
 WORKDIR /src
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates tzdata
 
 # Copy all necessary files
 COPY main.go .
@@ -25,8 +25,9 @@ RUN upx --best --lzma /app/fe-tracker
 FROM scratch
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=compressor /app/fe-tracker .
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /src/templates/ templates/
+COPY --from=compressor /app/fe-tracker .
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

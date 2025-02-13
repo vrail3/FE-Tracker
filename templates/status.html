@@ -299,6 +299,44 @@
             .card h1 { font-size: 2rem; }
             .card h2 { font-size: 1.5rem; }
         }
+
+        /* Update metric row styles */
+        .metric-row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.75rem;
+            flex-wrap: nowrap; /* Prevent wrapping */
+        }
+
+        .metric-label {
+            font-weight: 600;
+            color: var(--label-color);
+            flex: 0 0 140px; /* Fixed width, no grow, no shrink */
+            margin-right: 1.5rem; /* Use margin instead of gap */
+        }
+
+        .metric-value {
+            color: var(--text-color);
+            flex: 1 1 auto; /* Grow and shrink as needed */
+            min-width: 0; /* Allow text to truncate if needed */
+            word-break: break-word; /* Better word breaking */
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 767px) {
+            .metric-label {
+                flex: 0 0 120px; /* Slightly smaller on mobile */
+                font-size: 0.9rem;
+            }
+
+            .metric-value {
+                font-size: 0.9rem;
+            }
+
+            .metric-row {
+                margin-bottom: 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>

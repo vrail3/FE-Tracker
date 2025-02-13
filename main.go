@@ -546,17 +546,23 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 
 // Add SSE handler for live updates and use timezone
 func handleEvents(w http.ResponseWriter, r *http.Request) {
-	// Set headers for SSE
+	// Set headers for SSE with keep-alive
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable proxy buffering
 
 	// Create channel for client disconnect detection
 	done := r.Context().Done()
 
-	// Create ticker for updates
-	ticker := time.NewTicker(1 * time.Second)
+	// Create ticker for updates with shorter interval
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
+
+	// Send initial keep-alive
+	fmt.Fprint(w, ": keep-alive\n\n")
+	w.(http.Flusher).Flush()
 
 	// Send updates
 	for {
@@ -564,6 +570,12 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 		case <-done:
 			return
 		case <-ticker.C:
+			// Send keep-alive comment every tick
+			if _, err := fmt.Fprint(w, ": keep-alive\n\n"); err != nil {
+				log.Printf("Error sending keep-alive: %v", err)
+				return
+			}
+
 			metrics.mu.Lock()
 			status := struct {
 				Status  string `json:"status"`
@@ -600,13 +612,13 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 			}
 			metrics.mu.Unlock()
 
-			data, err := json.Marshal(status)
-			if err != nil {
-				log.Printf("Error marshaling SSE data: %v", err)
-				continue
+			if data, err := json.Marshal(status); err == nil {
+				if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+					log.Printf("Error sending event: %v", err)
+					return
+				}
 			}
 
-			fmt.Fprintf(w, "data: %s\n\n", data)
 			w.(http.Flusher).Flush()
 		}
 	}
@@ -728,12 +740,24 @@ func main() {
 	http.HandleFunc("/status", handleStatus)
 	http.HandleFunc("/events", handleEvents)
 
-	// Create HTTP server with timeout configs
+	// Create HTTP server with improved timeout and keepalive configs
 	srv := &http.Server{
-		Addr:         ":8080",
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		Addr:              ":8080",
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
+
+	// Add keepalive checking
+	go func() {
+		for {
+			time.Sleep(time.Second * 30)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Printf("Keep-alive check failed: %v", err)
+			}
+		}
+	}()
 
 	// Start HTTP server in a goroutine
 	wg.Add(1)

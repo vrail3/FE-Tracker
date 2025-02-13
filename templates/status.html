@@ -258,45 +258,103 @@
         // Load saved theme on startup
         loadTheme();
 
-        // SSE handling
-        const sse = new EventSource('/events');
-        
-        sse.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            const statusElement = document.getElementById('status');
-            
-            // Update status with proper class
-            statusElement.textContent = data.status;
-            statusElement.className = 'status-ok'; // Reset to ok state
+        // SSE handling with reconnection
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 1000; // Start with 1 second
 
-            document.getElementById('uptime').textContent = data.uptime;
-            document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
-            document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
-            document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
-            document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
-            document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
-
-            // Update purchase button state
-            const purchaseButton = document.getElementById('purchaseButton');
+        function connectSSE() {
+            const sse = new EventSource('/events');
             
-            if (data.metrics.purchase_url) {
-                purchaseButton.href = data.metrics.purchase_url;
-                purchaseButton.classList.add('available');
-                purchaseButton.textContent = 'Purchase Now!';
-                purchaseButton.onclick = null; // Remove click prevention
-            } else {
-                purchaseButton.href = 'javascript:void(0)'; // Prevent navigation
-                purchaseButton.classList.remove('available');
-                purchaseButton.textContent = 'Not Available';
-                purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
+            sse.onmessage = (event) => {
+                // Reset reconnection counter on successful message
+                reconnectAttempts = 0;
+                
+                const data = JSON.parse(event.data);
+                const statusElement = document.getElementById('status');
+                
+                statusElement.textContent = data.status;
+                statusElement.className = 'status-ok';
+
+                document.getElementById('uptime').textContent = data.uptime;
+                document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
+                document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
+                document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
+                document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
+                document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
+
+                // Update purchase button state
+                const purchaseButton = document.getElementById('purchaseButton');
+                
+                if (data.metrics.purchase_url) {
+                    purchaseButton.href = data.metrics.purchase_url;
+                    purchaseButton.classList.add('available');
+                    purchaseButton.textContent = 'Purchase Now!';
+                    purchaseButton.onclick = null; // Remove click prevention
+                } else {
+                    purchaseButton.href = 'javascript:void(0)'; // Prevent navigation
+                    purchaseButton.classList.remove('available');
+                    purchaseButton.textContent = 'Not Available';
+                    purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
+                }
+
+                // Check for SKU changes
+                if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
+                    lastSku = data.metrics.current_sku;
+                    showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
+                }
+
+                // Check for purchase URL changes
+                if (data.metrics.purchase_url && data.metrics.purchase_url !== lastPurchaseUrl) {
+                    lastPurchaseUrl = data.metrics.purchase_url;
+                    showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
+                    
+                    // Auto-open in new tab if enabled
+                    if (autoOpenToggle.checked) {
+                        window.open(data.metrics.purchase_url, '_blank');
+                    }
+                } else if (!data.metrics.purchase_url) {
+                    lastPurchaseUrl = '';
+                }
+            };
+
+            sse.onerror = (e) => {
+                const statusElement = document.getElementById('status');
+                statusElement.textContent = 'disconnected';
+                statusElement.className = 'status-error';
+
+                // Close the connection
+                sse.close();
+
+                // Attempt to reconnect with exponential backoff
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    const delay = reconnectDelay * Math.pow(2, reconnectAttempts);
+                    reconnectAttempts++;
+                    console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+                    setTimeout(connectSSE, delay);
+                } else {
+                    console.log('Max reconnection attempts reached');
+                    showNotification('Connection Lost', 'Please refresh the page to reconnect');
+                }
+            };
+
+            return sse;
+        }
+
+        // Start the SSE connection
+        let eventSource = connectSSE();
+
+        // Reconnect on visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // Reconnect if we were hidden and are now visible
+                if (eventSource) {
+                    eventSource.close();
+                }
+                reconnectAttempts = 0; // Reset counter
+                eventSource = connectSSE();
             }
-        };
-
-        sse.onerror = () => {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = 'disconnected';
-            statusElement.className = 'status-error';
-        };
+        });
 
         // Notification handling
         let lastSku = '';
@@ -360,62 +418,6 @@
         autoOpenToggle.addEventListener('change', () => {
             localStorage.setItem('autoOpen', autoOpenToggle.checked);
         });
-
-        // Update SSE handler
-        sse.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            const statusElement = document.getElementById('status');
-            
-            statusElement.textContent = data.status;
-            statusElement.className = 'status-ok';
-
-            document.getElementById('uptime').textContent = data.uptime;
-            document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
-            document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
-            document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
-            document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
-            document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
-
-            // Update purchase button state
-            const purchaseButton = document.getElementById('purchaseButton');
-            
-            if (data.metrics.purchase_url) {
-                purchaseButton.href = data.metrics.purchase_url;
-                purchaseButton.classList.add('available');
-                purchaseButton.textContent = 'Purchase Now!';
-                purchaseButton.onclick = null; // Remove click prevention
-            } else {
-                purchaseButton.href = 'javascript:void(0)'; // Prevent navigation
-                purchaseButton.classList.remove('available');
-                purchaseButton.textContent = 'Not Available';
-                purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
-            }
-
-            // Check for SKU changes
-            if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
-                lastSku = data.metrics.current_sku;
-                showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
-            }
-
-            // Check for purchase URL changes
-            if (data.metrics.purchase_url && data.metrics.purchase_url !== lastPurchaseUrl) {
-                lastPurchaseUrl = data.metrics.purchase_url;
-                showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
-                
-                // Auto-open in new tab if enabled
-                if (autoOpenToggle.checked) {
-                    window.open(data.metrics.purchase_url, '_blank');
-                }
-            } else if (!data.metrics.purchase_url) {
-                lastPurchaseUrl = '';
-            }
-        };
-
-        sse.onerror = () => {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = 'disconnected';
-            statusElement.className = 'status-error';
-        };
     </script>
 </body>
 </html>

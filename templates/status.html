@@ -2,6 +2,7 @@
 <html data-theme="dark">
 <head>
     <title>FE Tracker Status</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <style>
         /* Theme variables */
@@ -30,31 +31,37 @@
             padding: 0;
         }
 
+        /* Mobile-first base styles */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             max-width: 800px;
             margin: 0 auto;
-            padding: 2rem 1rem;
+            padding: 0.75rem;
             background: var(--bg-color);
             color: var(--text-color);
             transition: all 0.3s ease;
             line-height: 1.6;
+            font-size: 14px;
         }
 
-        /* Card styles */
         .card {
             background: var(--card-bg);
-            padding: 2rem;
+            padding: 1rem;
             border-radius: 12px;
             box-shadow: 0 2px 4px var(--shadow-color);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             transition: all 0.3s ease;
+            overflow-x: hidden;
+            word-wrap: break-word;
         }
 
         .card h1, .card h2 {
             margin-bottom: 1rem;
             font-weight: 600;
         }
+
+        .card h1 { font-size: 1.5rem; }
+        .card h2 { font-size: 1.25rem; }
 
         /* Status indicators */
         .status-ok { color: #2ecc71; }
@@ -63,21 +70,29 @@
         .metric-label {
             font-weight: 600;
             color: var(--label-color);
-            display: inline-block;
-            min-width: 150px;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            color: var(--text-color);
+            display: block;
+            margin-bottom: 0.75rem;
+            word-break: break-all;
         }
 
         /* Theme toggle switch */
         .theme-toggle-wrapper {
             position: fixed;
-            top: 1rem;
-            right: 1rem;
+            top: 0.5rem;
+            right: 0.5rem;
             display: flex;
             align-items: center;
             background: var(--card-bg);
             padding: 0.5rem;
             border-radius: 20px;
             box-shadow: 0 2px 4px var(--shadow-color);
+            z-index: 1000;
         }
 
         .theme-toggle {
@@ -121,8 +136,10 @@
 
         .purchase-button {
             display: inline-block;
-            padding: 1rem 3rem;
-            font-size: 1.2rem;
+            width: 100%;
+            max-width: 300px;
+            padding: 0.875rem 1.5rem;
+            font-size: 1.1rem;
             font-weight: 600;
             text-decoration: none;
             border-radius: 12px;
@@ -160,9 +177,10 @@
         /* Add toggle switch styles */
         .auto-open-toggle {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             margin-top: 1rem;
             padding: 0.5rem;
             background: var(--card-bg);
@@ -209,6 +227,45 @@
         /* Remove metric-value animation styles */
         .metric-value {
             color: var(--text-color);
+        }
+
+        /* Desktop styles */
+        @media (min-width: 768px) {
+            body {
+                padding: 2rem;
+                font-size: 16px;
+            }
+
+            .card {
+                padding: 2rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .metric-label {
+                display: inline-block;
+                min-width: 150px;
+                margin-bottom: 0;
+            }
+
+            .metric-value {
+                display: inline;
+                margin-bottom: 0;
+            }
+
+            .purchase-button {
+                width: auto;
+                padding: 1rem 3rem;
+                font-size: 1.2rem;
+            }
+
+            .auto-open-toggle {
+                flex-direction: row;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+
+            .card h1 { font-size: 2rem; }
+            .card h2 { font-size: 1.5rem; }
         }
     </style>
 </head>

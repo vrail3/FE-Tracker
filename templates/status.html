@@ -305,9 +305,9 @@
                     purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
                 }
 
-                // Check for SKU changes
+                // Check for SKU changes with persistence
                 if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
-                    lastSku = data.metrics.current_sku;
+                    updateLastSku(data.metrics.current_sku);
                     showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
                 }
 
@@ -364,7 +364,7 @@
         });
 
         // Notification handling
-        let lastSku = '';
+        let lastSku = localStorage.getItem('lastSku') || '';
         let lastPurchaseUrl = '';
         
         async function requestNotificationPermission() {
@@ -425,6 +425,12 @@
         autoOpenToggle.addEventListener('change', () => {
             localStorage.setItem('autoOpen', autoOpenToggle.checked);
         });
+
+        // Update localStorage when SKU changes
+        function updateLastSku(sku) {
+            lastSku = sku;
+            localStorage.setItem('lastSku', sku);
+        }
     </script>
 </body>
 </html>

@@ -544,24 +544,32 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(status)
 }
 
-// Add SSE handler for live updates and use timezone
+// Update handleEvents for more reliable connection
 func handleEvents(w http.ResponseWriter, r *http.Request) {
-	// Set headers for SSE with keep-alive
+	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("X-Accel-Buffering", "no") // Disable proxy buffering
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Increase read timeout for the specific connection
+	if _, ok := w.(http.Flusher); !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
 
 	// Create channel for client disconnect detection
 	done := r.Context().Done()
 
-	// Create ticker for updates with shorter interval
-	ticker := time.NewTicker(500 * time.Millisecond)
+	// Create ticker for updates with longer interval
+	ticker := time.NewTicker(5 * time.Second)
+	pingTicker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
+	defer pingTicker.Stop()
 
-	// Send initial keep-alive
-	fmt.Fprint(w, ": keep-alive\n\n")
+	// Initial connection message
+	fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"connected\"}\n\n")
 	w.(http.Flusher).Flush()
 
 	// Send updates
@@ -569,13 +577,11 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-done:
 			return
+		case <-pingTicker.C:
+			// Send keep-alive ping
+			fmt.Fprint(w, ": ping\n\n")
+			w.(http.Flusher).Flush()
 		case <-ticker.C:
-			// Send keep-alive comment every tick
-			if _, err := fmt.Fprint(w, ": keep-alive\n\n"); err != nil {
-				log.Printf("Error sending keep-alive: %v", err)
-				return
-			}
-
 			metrics.mu.Lock()
 			status := struct {
 				Status  string `json:"status"`
@@ -668,6 +674,7 @@ func setupLogger() {
 	// Remove previous SetPrefix call
 }
 
+// Update server configuration in main()
 func main() {
 	// Add command line flag for health check
 	healthCheck := flag.Bool("health-check", false, "Perform health check and exit")
@@ -740,31 +747,23 @@ func main() {
 	http.HandleFunc("/status", handleStatus)
 	http.HandleFunc("/events", handleEvents)
 
-	// Create HTTP server with improved timeout and keepalive configs
+	// Create HTTP server with adjusted timeout settings for SSE
 	srv := &http.Server{
 		Addr:              ":8080",
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      0, // Disable write timeout for SSE
 		IdleTimeout:       120 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
+		// Add handler explicitly
+		Handler: nil, // Will use default ServeMux
 	}
-
-	// Add keepalive checking
-	go func() {
-		for {
-			time.Sleep(time.Second * 30)
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Printf("Keep-alive check failed: %v", err)
-			}
-		}
-	}()
 
 	// Start HTTP server in a goroutine
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Printf("Starting server on :8080")
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP server error: %v", err)
 			cancel() // Cancel context if server fails
 		}

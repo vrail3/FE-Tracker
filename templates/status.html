@@ -161,6 +161,7 @@
         .auto-open-toggle {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             margin-top: 1rem;
             padding: 0.5rem;
@@ -197,6 +198,12 @@
 
         .toggle-switch:checked::after {
             transform: translateX(26px);
+        }
+
+        .auto-open-toggle label {
+            color: var(--text-color);
+            font-size: 0.9rem;
+            user-select: none;
         }
     </style>
 </head>
@@ -236,7 +243,7 @@
             </a>
             <div class="auto-open-toggle">
                 <input type="checkbox" id="autoOpenToggle" class="toggle-switch" checked>
-                <label for="autoOpenToggle">Auto-open purchase page</label>
+                <label for="autoOpenToggle">Auto-open purchase page when available</label>
             </div>
         </div>
     </div>

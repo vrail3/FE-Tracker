@@ -2,6 +2,7 @@
 <html data-theme="dark">
 <head>
     <title>FE Tracker Status</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <style>
         /* Theme variables */
         :root[data-theme="light"] {
@@ -162,16 +163,6 @@
         <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
     </div>
 
-    <!-- Add audio elements -->
-    <audio id="notificationSound" preload="auto">
-        <source src="data:audio/mpeg;base64,//OEZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAArAAATZAAGBg0NDRQUFBsbIiIiKSkpMDA3NzdCQkJJSVBQUFdXV15eZWVlbGxseXmAgICHh4eOjpWVlZycnKOjqqqquLi4v7/MzMzT09Pa2uHh4ejt7fT09Pv7+/v7//8AAAA5TEFNRTMuOTlyAm4AAAAALgYAABRGJALBTgAARgAATZIgxdqPAAAAAAAAAAAAAAAAAAAA//OEZAANCD9CBc2YAA5QOkF588wBERERERERERERERERERERERFrq6v/6urERERERETMzMzMzMzMzP/MzMzP//MzMzMzMzERERERERESIiIiIiIiVVVVVVVVVaqqqqqqqrszMzMzMzN3d3d3d3d3//O0ZAURAD8WHe5hoAAtgvXcwigAiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiL8zPVVVVVVVVVVVVVVVVVVVVVVVVVVf/MzMzMzMzVVVVVVVVXd3d3d3d3d3d3d3d3d3eqqqqqqqqru7u7u7u7u7u7u7u7u7u93d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d//MRERAAAGkAAAAAAAAA3d3d3d3d3d3d3d3d3d3d3d3d3d3d3dERAP/zBGQFDYJ63KPDYAALqQV6mtHgAB3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3dERAP/zBETgAAAAAAAAAAAAd3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d//OCRAIOAAAGkHAAAAAAAD3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
-    <audio id="skuChangeSound" preload="auto">
-        <source src="data:audio/mpeg;base64,//OEZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAeAAAMhAAFBQsLCxERERcXHR0dIyMjKSkuLi40NDQ6Oj8/P0VFRUtLUVFRV1ddXV1jY2lpb29vdXV7e3uBgYeHh42NjZOTmZmZn5+fpqatrazMzMzS0tLS2Njf39/l5eXl6+vy8vL4+Pj4//8AAAA5TEFNRTMuOTlyAm4AAAAALAAAABRGJALATgAARgAADIRERXQcAAAAAAAAAAAAAAAAAAAA//OEZAAP0AtqBc54ACwIGnmczIABVVVVVVVVVVVVVVVVVVVVVVVVVVVmZmZmZmZmZmZmZmd3d3d3d3eIiIiIiIiJmZmZmZmZmqqqqqqqqru7u7u7u7vMzMzMzMzM3d3d3d3d3f///////////+7u7u7u7u7MzMzM//PEZAoMoA1WmcwQAYjYBoMzEiABzMzMzMzMzMzMzMzMzGZmZmZmZmZVVVVVVVVVERERERERETMzMzMzMzNVVVVVVVVVZmZmZmZmZnd3d3d3d3eIiIiIiIiIqqqqqqqqq7u7u7u7u7vd3d3d3d3d7u7u7u7u7v///////////+7u7u7u7u7MzMzMzMzM//PURAoRigCnQg4sQAmjgItw8CQARERERERERERERERERERERGZmZmZmZmZmZmZmZmZmZmaqqqqqqqqqqqqqqqqqqqu7u7u7u7u7u7u7u7u7u7vd3d3d3d3d3d3d3d3d3d3u7u7u7u7u7u7u7u7u7u7/////////////////zMzMzMzMzMzMzMzMzMzMREREREREREREREREREREVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
-
     <!-- Add notification permission button -->
     <div id="notificationPermission" class="card" style="display: none;">
         <h2>Enable Notifications</h2>
@@ -269,17 +260,11 @@
             try {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    // Request persistent permission
-                    if (navigator.permissions && navigator.permissions.query) {
-                        const result = await navigator.permissions.query({ name: 'notifications' });
-                        if (result.state === 'granted') {
-                            document.getElementById('notificationPermission').style.display = 'none';
-                            new Notification('FE Tracker', {
-                                body: 'Background notifications enabled!',
-                                requireInteraction: true // Keep notification until user interacts
-                            });
-                        }
-                    }
+                    document.getElementById('notificationPermission').style.display = 'none';
+                    new Notification('FE Tracker', {
+                        body: 'Notifications enabled successfully!',
+                        requireInteraction: true
+                    });
                 }
             } catch (err) {
                 console.error('Error requesting notification permission:', err);
@@ -293,28 +278,21 @@
             }
         }
 
-        // Sound elements
-        const notificationSound = document.getElementById('notificationSound');
-        const skuChangeSound = document.getElementById('skuChangeSound');
-
         // Page visibility handling
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'hidden') {
-                // Keep connection alive when page is not focused
                 navigator.serviceWorker?.ready.then(registration => {
                     registration.active?.postMessage({ type: 'KEEP_ALIVE' });
                 });
             }
         });
 
-        // Update notification creation to work in background
         function showNotification(title, body, url = null) {
             if (Notification.permission === 'granted') {
                 const notification = new Notification(title, {
                     body: body,
-                    icon: '/favicon.ico',
-                    requireInteraction: true, // Keep notification until user interacts
-                    silent: false // Always play sound
+                    icon: '/static/favicon.ico',
+                    requireInteraction: true
                 });
 
                 if (url) {
@@ -359,14 +337,12 @@
             // Check for SKU changes
             if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
                 lastSku = data.metrics.current_sku;
-                skuChangeSound.play().catch(e => console.log('Audio play prevented by browser'));
                 showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
             }
 
             // Check for purchase URL changes
             if (data.metrics.purchase_url && data.metrics.purchase_url !== lastPurchaseUrl) {
                 lastPurchaseUrl = data.metrics.purchase_url;
-                notificationSound.play().catch(e => console.log('Audio play prevented by browser'));
                 showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
             } else if (!data.metrics.purchase_url) {
                 lastPurchaseUrl = '';

@@ -671,12 +671,12 @@ func main() {
 
 	// Set global ntfy topic at startup
 	ntfyTopic = os.Getenv("NTFY_TOPIC")
-	if ntfyTopic == "" {
+	if (ntfyTopic == "") {
 		log.Fatal("NTFY_TOPIC environment variable is required")
 	}
 
 	config, err := loadEnvConfig()
-	if err != nil {
+	if (err != nil) {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
@@ -684,7 +684,7 @@ func main() {
 	setupLogger()
 
 	// Send startup notification
-	if err := sendStartupNotification(config); err != nil {
+	if (err := sendStartupNotification(config); err != nil) {
 		log.Printf("Failed to send startup notification: %v", err)
 	}
 
@@ -703,14 +703,21 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := startMonitoring(ctx, config); err != nil && !errors.Is(err, context.Canceled) {
+		if (err := startMonitoring(ctx, config); err != nil && !errors.Is(err, context.Canceled)) {
 			log.Printf("Monitoring failed: %v", err)
 			cancel() // Cancel context if monitoring fails with non-cancellation error
 		}
 	}()
 
-	// Update route handlers to be more explicit
+	// Add static file serving
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	// Update existing route handlers
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/favicon.ico" {
+			http.ServeFile(w, r, "static/favicon.ico")
+			return
+		}
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
@@ -733,7 +740,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Printf("Starting server on :8080")
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		if (err := srv.ListenAndServe(); err != http.ErrServerClosed) {
 			log.Printf("HTTP server error: %v", err)
 			cancel() // Cancel context if server fails
 		}
@@ -769,7 +776,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	if (err := srv.Shutdown(shutdownCtx); err != nil) {
 		log.Printf("HTTP server shutdown error: %v", err)
 	}
 

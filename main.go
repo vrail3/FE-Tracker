@@ -489,7 +489,7 @@ func startMonitoring(ctx context.Context, config Config) error {
 	}
 }
 
-// Update handleStatus to only return JSON
+// Update handleStatus to properly initialize the status struct with current data
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	metrics.mu.Lock()
 	status := struct {
@@ -504,7 +504,23 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			LastStatusCheck time.Time `json:"last_status_check"`
 		} `json:"metrics"`
 	}{
-		// ...existing struct initialization...
+		Status: "running",
+		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+		Metrics: struct {
+			CurrentSKU      string    `json:"current_sku"`
+			ErrorCount24h   int       `json:"error_count_24h"`
+			ApiRequests     int       `json:"api_requests_24h"`
+			NtfySent        int       `json:"ntfy_messages_sent"`
+			StartTime       time.Time `json:"start_time"`
+			LastStatusCheck time.Time `json:"last_status_check"`
+		}{
+			CurrentSKU:      metrics.CurrentSKU,
+			ErrorCount24h:   errorTracker.get24hErrorCount(),
+			ApiRequests:     metrics.ApiRequests,
+			NtfySent:        metrics.NtfySent,
+			StartTime:       metrics.StartTime,
+			LastStatusCheck: metrics.LastStatusCheck,
+		},
 	}
 	metrics.mu.Unlock()
 

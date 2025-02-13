@@ -3,12 +3,14 @@
 <head>
     <title>FE Tracker Status</title>
     <style>
+        /* Theme variables */
         :root[data-theme="light"] {
             --bg-color: #f5f5f5;
             --card-bg: white;
             --text-color: #2c3e50;
             --label-color: #34495e;
             --shadow-color: rgba(0,0,0,0.1);
+            --toggle-bg: #d1d1d1;
         }
         
         :root[data-theme="dark"] {
@@ -17,66 +19,113 @@
             --text-color: #e0e0e0;
             --label-color: #90a4ae;
             --shadow-color: rgba(0,0,0,0.3);
+            --toggle-bg: #3a3a3a;
+        }
+
+        /* Global styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             max-width: 800px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+            margin: 0 auto;
+            padding: 2rem 1rem;
             background: var(--bg-color);
             color: var(--text-color);
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            line-height: 1.6;
         }
 
+        /* Card styles */
         .card {
             background: var(--card-bg);
-            padding: 1.5rem;
-            border-radius: 8px;
+            padding: 2rem;
+            border-radius: 12px;
             box-shadow: 0 2px 4px var(--shadow-color);
-            margin-bottom: 1rem;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
         }
 
+        .card h1, .card h2 {
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        /* Status indicators */
         .status-ok { color: #2ecc71; }
         .status-error { color: #e74c3c; }
         
         .metric-label {
-            font-weight: bold;
+            font-weight: 600;
             color: var(--label-color);
+            display: inline-block;
+            min-width: 150px;
         }
 
-        .theme-toggle {
+        /* Theme toggle switch */
+        .theme-toggle-wrapper {
             position: fixed;
             top: 1rem;
             right: 1rem;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            border: 1px solid var(--label-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
             background: var(--card-bg);
-            color: var(--text-color);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .theme-toggle {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            appearance: none;
+            background: var(--toggle-bg);
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
         }
 
-        .theme-toggle:hover {
-            opacity: 0.8;
+        .theme-toggle::after {
+            content: "🌙";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
 
+        .theme-toggle:checked::after {
+            content: "☀️";
+            transform: translateX(26px);
+        }
+
+        /* Purchase button */
         .purchase-section {
             text-align: center;
-            margin: 2rem 0;
+            padding: 2rem;
         }
 
         .purchase-button {
             display: inline-block;
-            padding: 1rem 2rem;
+            padding: 1rem 3rem;
             font-size: 1.2rem;
-            font-weight: bold;
+            font-weight: 600;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 12px;
             transition: all 0.3s ease;
-            /* Default state (unavailable) */
             background: #575757;
             color: #888;
             cursor: not-allowed;
@@ -101,31 +150,42 @@
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+
+        /* Spacing utilities */
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
     </style>
 </head>
 <body>
-    <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+    <div class="theme-toggle-wrapper">
+        <span>🌙</span>
+        <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
+        <span>☀️</span>
+    </div>
 
     <div class="card">
         <h1>FE Tracker Status</h1>
-        <p><span class="metric-label">Status:</span> <span id="status" class="status-ok">loading...</span></p>
+        <p class="mb-2"><span class="metric-label">Status:</span> <span id="status" class="status-ok">loading...</span></p>
         <p><span class="metric-label">Uptime:</span> <span id="uptime">loading...</span></p>
     </div>
     
     <div class="card">
         <h2>Metrics</h2>
-        <p><span class="metric-label">Current SKU:</span> <span id="currentSku">loading...</span></p>
-        <p><span class="metric-label">Errors (24h):</span> <span id="errorCount">loading...</span></p>
-        <p><span class="metric-label">API Requests (24h):</span> <span id="apiRequests">loading...</span></p>
-        <p><span class="metric-label">Notifications Sent:</span> <span id="ntfySent">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">Current SKU:</span> <span id="currentSku">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">Errors (24h):</span> <span id="errorCount">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">API Requests (24h):</span> <span id="apiRequests">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">Notifications Sent:</span> <span id="ntfySent">loading...</span></p>
         <p><span class="metric-label">Start Time:</span> <span id="startTime">loading...</span></p>
     </div>
 
-    <div id="purchaseSection" class="purchase-section card">
+    <div id="purchaseSection" class="card">
         <h2>Purchase Status</h2>
-        <a id="purchaseButton" href="#" target="_blank" class="purchase-button">
-            Not Available
-        </a>
+        <div class="purchase-section">
+            <a id="purchaseButton" href="#" target="_blank" class="purchase-button">
+                Not Available
+            </a>
+        </div>
     </div>
 
     <script>
@@ -133,13 +193,13 @@
         function loadTheme() {
             const theme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
+            document.getElementById('themeToggle').checked = theme === 'light';
         }
 
         function toggleTheme() {
-            const current = document.documentElement.getAttribute('data-theme');
-            const newTheme = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+            const theme = document.getElementById('themeToggle').checked ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
         }
 
         // Load saved theme on startup
@@ -165,10 +225,12 @@
                 purchaseButton.href = data.metrics.purchase_url;
                 purchaseButton.classList.add('available');
                 purchaseButton.textContent = 'Purchase Now!';
+                purchaseButton.onclick = null; // Remove click prevention
             } else {
-                purchaseButton.href = '#';
+                purchaseButton.href = 'javascript:void(0)'; // Prevent navigation
                 purchaseButton.classList.remove('available');
                 purchaseButton.textContent = 'Not Available';
+                purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
             }
         };
 

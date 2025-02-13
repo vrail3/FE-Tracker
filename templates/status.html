@@ -2,6 +2,7 @@
 <html data-theme="dark">
 <head>
     <title>FE Tracker Status</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <style>
         /* Theme variables */
@@ -30,25 +31,28 @@
             padding: 0;
         }
 
+        /* Update global styles for mobile */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             max-width: 800px;
             margin: 0 auto;
-            padding: 2rem 1rem;
+            padding: 1rem;
             background: var(--bg-color);
             color: var(--text-color);
             transition: all 0.3s ease;
             line-height: 1.6;
         }
 
-        /* Card styles */
+        /* Update card styles for mobile */
         .card {
             background: var(--card-bg);
-            padding: 2rem;
+            padding: 1.5rem;
             border-radius: 12px;
             box-shadow: 0 2px 4px var(--shadow-color);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             transition: all 0.3s ease;
+            overflow-x: hidden;
+            word-wrap: break-word;
         }
 
         .card h1, .card h2 {
@@ -60,18 +64,38 @@
         .status-ok { color: #2ecc71; }
         .status-error { color: #e74c3c; }
         
+        /* Update metric labels for mobile */
         .metric-label {
             font-weight: 600;
             color: var(--label-color);
-            display: inline-block;
-            min-width: 150px;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        @media (min-width: 768px) {
+            .metric-label {
+                display: inline-block;
+                min-width: 150px;
+                margin-bottom: 0;
+            }
+            
+            body {
+                padding: 2rem;
+            }
+            
+            .card {
+                padding: 2rem;
+                margin-bottom: 1.5rem;
+            }
         }
 
         /* Theme toggle switch */
+        /* Update theme toggle position for mobile */
         .theme-toggle-wrapper {
             position: fixed;
-            top: 1rem;
-            right: 1rem;
+            top: 0.5rem;
+            right: 0.5rem;
+            z-index: 1000;
             display: flex;
             align-items: center;
             background: var(--card-bg);
@@ -114,15 +138,18 @@
         }
 
         /* Purchase button */
+        /* Update purchase section for mobile */
         .purchase-section {
             text-align: center;
-            padding: 2rem;
+            padding: 1rem 0;
         }
 
         .purchase-button {
             display: inline-block;
-            padding: 1rem 3rem;
-            font-size: 1.2rem;
+            width: 100%;
+            max-width: 300px;
+            padding: 0.875rem 1.5rem;
+            font-size: 1.1rem;
             font-weight: 600;
             text-decoration: none;
             border-radius: 12px;
@@ -152,19 +179,33 @@
             100% { transform: scale(1); }
         }
 
+        @media (min-width: 768px) {
+            .purchase-button {
+                width: auto;
+                padding: 1rem 3rem;
+                font-size: 1.2rem;
+            }
+
+            .purchase-section {
+                padding: 2rem;
+            }
+        }
+
         /* Spacing utilities */
         .mb-1 { margin-bottom: 0.5rem; }
         .mb-2 { margin-bottom: 1rem; }
         .mb-3 { margin-bottom: 1.5rem; }
 
         /* Add toggle switch styles */
+        /* Update toggle switch layout for mobile */
         .auto-open-toggle {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             margin-top: 1rem;
-            padding: 0.5rem;
+            padding: 0.75rem;
             background: var(--card-bg);
             border-radius: 8px;
         }
@@ -206,9 +247,56 @@
             user-select: none;
         }
 
+        @media (min-width: 768px) {
+            .auto-open-toggle {
+                flex-direction: row;
+                gap: 0.5rem;
+            }
+        }
+
         /* Remove metric-value animation styles */
+        /* Add responsive spacing */
         .metric-value {
             color: var(--text-color);
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .metric-value {
+                display: inline;
+                margin-bottom: 0;
+            }
+        }
+
+        /* Add responsive font sizes */
+        html {
+            font-size: 14px;
+        }
+
+        @media (min-width: 768px) {
+            html {
+                font-size: 16px;
+            }
+        }
+
+        /* Update card headers for mobile */
+        .card h1 {
+            font-size: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+        }
+
+        @media (min-width: 768px) {
+            .card h1 {
+                font-size: 2rem;
+            }
+
+            .card h2 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>

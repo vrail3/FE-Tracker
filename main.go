@@ -89,9 +89,10 @@ type Metrics struct {
 	mu              sync.Mutex
 }
 
+// Update metrics initialization to use UTC initially
 var metrics = Metrics{
-	StartTime:       time.Now(),
-	LastStatusCheck: time.Now(), // Initialize LastStatusCheck
+	StartTime:       time.Now().UTC(),
+	LastStatusCheck: time.Now().UTC(),
 }
 
 func (m *Metrics) incrementApiRequests() {
@@ -199,10 +200,10 @@ func sendNtfyNotification(title, message string, priority int) error {
 	return nil
 }
 
-// Update makeRequest to accept context
-func makeRequest(ctx context.Context, url string) (*NvidiaSearchResponse, error) {
+// Update makeRequest to accept context and timezone
+func makeRequest(ctx context.Context, url string, location *time.Location) (*NvidiaSearchResponse, error) {
 	metrics.incrementApiRequests()
-	metrics.updateLastCheck(time.UTC)
+	metrics.updateLastCheck(location)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -217,7 +218,7 @@ func makeRequest(ctx context.Context, url string) (*NvidiaSearchResponse, error)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		errorTracker.AddError(err, time.UTC) // Track the error
+		errorTracker.AddError(err, location) // Track the error
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
@@ -331,9 +332,9 @@ func sendStartupNotification(config Config) error {
 	)
 }
 
-// Update checkInventory to accept context
-func checkInventory(ctx context.Context, sku, locale string) error {
-	metrics.updateLastCheck(time.UTC) // Add this line
+// Update checkInventory to accept context and timezone
+func checkInventory(ctx context.Context, sku, locale string, location *time.Location) error {
+	metrics.updateLastCheck(location) // Add this line
 	url := fmt.Sprintf("https://api.store.nvidia.com/partner/v1/feinventory?skus=%s&locale=%s", sku, locale)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -386,9 +387,9 @@ Direct purchase link:
 	return nil
 }
 
-// Update checkSkuStatus to accept and use context
+// Update checkSkuStatus to accept and use context and timezone
 func checkSkuStatus(ctx context.Context, config Config) error {
-	response, err := makeRequest(ctx, config.ApiURL)
+	response, err := makeRequest(ctx, config.ApiURL, config.TimeZone)
 	if err != nil {
 		return fmt.Errorf("API request failed: %v", err)
 	}
@@ -399,7 +400,7 @@ func checkSkuStatus(ctx context.Context, config Config) error {
 			foundFE = true
 			metrics.updateSKU(product.ProductSKU)
 
-			if err := checkInventory(ctx, product.ProductSKU, config.Locale); err != nil {
+			if err := checkInventory(ctx, product.ProductSKU, config.Locale, config.TimeZone); err != nil {
 				log.Printf("Inventory check failed: %v", err)
 			}
 			break
@@ -501,8 +502,8 @@ func startMonitoring(ctx context.Context, config Config) error {
 	}
 }
 
-// Update handleStatus to support both JSON and HTML
-func handleStatus(w http.ResponseWriter, r *http.Request) {
+// Update handleStatus to support both JSON and HTML and use timezone
+func handleStatus(w http.ResponseWriter, r *http.Request, location *time.Location) {
 	metrics.mu.Lock()
 	status := struct {
 		Status  string `json:"status"`
@@ -517,7 +518,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		} `json:"metrics"`
 	}{
 		Status: "running",
-		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+		Uptime: time.Since(metrics.StartTime.In(location)).Round(time.Second).String(),
 		Metrics: struct {
 			CurrentSKU      string    `json:"current_sku"`
 			ErrorCount24h   int       `json:"error_count_24h"`
@@ -530,8 +531,8 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
 			ApiRequests:     metrics.ApiRequests,
 			NtfySent:        metrics.NtfySent,
-			StartTime:       metrics.StartTime,
-			LastStatusCheck: metrics.LastStatusCheck,
+			StartTime:       metrics.StartTime.In(location),
+			LastStatusCheck: metrics.LastStatusCheck.In(location),
 		},
 	}
 	metrics.mu.Unlock()
@@ -551,8 +552,8 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Add SSE handler for live updates
-func handleEvents(w http.ResponseWriter, r *http.Request) {
+// Add SSE handler for live updates and use timezone
+func handleEvents(w http.ResponseWriter, r *http.Request, location *time.Location) {
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -585,7 +586,7 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 				} `json:"metrics"`
 			}{
 				Status: "running",
-				Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+				Uptime: time.Since(metrics.StartTime.In(location)).Round(time.Second).String(),
 				Metrics: struct {
 					CurrentSKU      string    `json:"current_sku"`
 					ErrorCount24h   int       `json:"error_count_24h"`
@@ -598,8 +599,8 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 					ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
 					ApiRequests:     metrics.ApiRequests,
 					NtfySent:        metrics.NtfySent,
-					StartTime:       metrics.StartTime,
-					LastStatusCheck: metrics.LastStatusCheck,
+					StartTime:       metrics.StartTime.In(location),
+					LastStatusCheck: metrics.LastStatusCheck.In(location),
 				},
 			}
 			metrics.mu.Unlock()
@@ -707,8 +708,13 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/status", http.StatusFound)
 	})
-	http.HandleFunc("/status", handleStatus)
-	http.HandleFunc("/events", handleEvents)
+	// Update HTTP handlers to include timezone
+	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		handleStatus(w, r, config.TimeZone)
+	})
+	http.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		handleEvents(w, r, config.TimeZone)
+	})
 
 	// Create HTTP server with timeout configs
 	srv := &http.Server{

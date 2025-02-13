@@ -73,9 +73,8 @@
             right: 1rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
             background: var(--card-bg);
-            padding: 0.5rem 1rem;
+            padding: 0.5rem;
             border-radius: 20px;
             box-shadow: 0 2px 4px var(--shadow-color);
         }
@@ -89,6 +88,7 @@
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
+            margin: 0;
         }
 
         .theme-toggle::after {
@@ -159,9 +159,7 @@
 </head>
 <body>
     <div class="theme-toggle-wrapper">
-        <span>🌙</span>
         <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
-        <span>☀️</span>
     </div>
 
     <div class="card">
@@ -210,7 +208,12 @@
         
         sse.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            document.getElementById('status').textContent = data.status;
+            const statusElement = document.getElementById('status');
+            
+            // Update status with proper class
+            statusElement.textContent = data.status;
+            statusElement.className = 'status-ok'; // Reset to ok state
+
             document.getElementById('uptime').textContent = data.uptime;
             document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
             document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
@@ -235,8 +238,9 @@
         };
 
         sse.onerror = () => {
-            document.getElementById('status').textContent = 'disconnected';
-            document.getElementById('status').className = 'status-error';
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'disconnected';
+            statusElement.className = 'status-error';
         };
     </script>
 </body>

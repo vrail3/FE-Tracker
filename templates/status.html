@@ -70,14 +70,15 @@
         .metric-label {
             font-weight: 600;
             color: var(--label-color);
-            display: block;
-            margin-bottom: 0.25rem;
+            display: inline-block;
+            min-width: 140px;
+            margin-bottom: 0;
         }
 
         .metric-value {
             color: var(--text-color);
-            display: block;
-            margin-bottom: 0.75rem;
+            display: inline;
+            margin-bottom: 0;
             word-break: break-all;
         }
 
@@ -229,6 +230,36 @@
             color: var(--text-color);
         }
 
+        /* Add container for metric rows */
+        .metric-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            margin-bottom: 0.75rem;
+            gap: 0.5rem;
+        }
+
+        /* Update mobile-specific styles */
+        @media (max-width: 767px) {
+            .card {
+                padding: 1rem;
+            }
+
+            .metric-label {
+                min-width: 120px; /* Slightly smaller on mobile */
+                font-size: 0.9rem;
+            }
+
+            .metric-value {
+                font-size: 0.9rem;
+                flex: 1;
+            }
+
+            .metric-row {
+                margin-bottom: 0.5rem;
+            }
+        }
+
         /* Desktop styles */
         @media (min-width: 768px) {
             body {
@@ -284,8 +315,14 @@
 
     <div class="card">
         <h1>FE Tracker Status</h1>
-        <p class="mb-2"><span class="metric-label">Status:</span> <span id="status" class="status-ok">loading...</span></p>
-        <p><span class="metric-label">Uptime:</span> <span id="uptime" class="metric-value">loading...</span></p>
+        <div class="metric-row">
+            <span class="metric-label">Status:</span>
+            <span id="status" class="status-ok">loading...</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Uptime:</span>
+            <span id="uptime" class="metric-value">loading...</span>
+        </div>
     </div>
     
     <div id="purchaseSection" class="card">
@@ -303,11 +340,26 @@
 
     <div class="card">
         <h2>Metrics</h2>
-        <p class="mb-1"><span class="metric-label">Current SKU:</span> <span id="currentSku" class="metric-value">loading...</span></p>
-        <p class="mb-1"><span class="metric-label">Errors (24h):</span> <span id="errorCount" class="metric-value">loading...</span></p>
-        <p class="mb-1"><span class="metric-label">API Requests (24h):</span> <span id="apiRequests" class="metric-value">loading...</span></p>
-        <p class="mb-1"><span class="metric-label">Notifications Sent:</span> <span id="ntfySent" class="metric-value">loading...</span></p>
-        <p><span class="metric-label">Start Time:</span> <span id="startTime" class="metric-value">loading...</span></p>
+        <div class="metric-row">
+            <span class="metric-label">Current SKU:</span>
+            <span id="currentSku" class="metric-value">loading...</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Errors (24h):</span>
+            <span id="errorCount" class="metric-value">loading...</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">API Requests (24h):</span>
+            <span id="apiRequests" class="metric-value">loading...</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Notifications Sent:</span>
+            <span id="ntfySent" class="metric-value">loading...</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Start Time:</span>
+            <span id="startTime" class="metric-value">loading...</span>
+        </div>
     </div>
 
     <script>

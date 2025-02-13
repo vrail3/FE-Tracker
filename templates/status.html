@@ -269,10 +269,17 @@
             try {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    document.getElementById('notificationPermission').style.display = 'none';
-                    new Notification('FE Tracker', {
-                        body: 'Notifications enabled successfully!'
-                    });
+                    // Request persistent permission
+                    if (navigator.permissions && navigator.permissions.query) {
+                        const result = await navigator.permissions.query({ name: 'notifications' });
+                        if (result.state === 'granted') {
+                            document.getElementById('notificationPermission').style.display = 'none';
+                            new Notification('FE Tracker', {
+                                body: 'Background notifications enabled!',
+                                requireInteraction: true // Keep notification until user interacts
+                            });
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('Error requesting notification permission:', err);
@@ -290,6 +297,35 @@
         const notificationSound = document.getElementById('notificationSound');
         const skuChangeSound = document.getElementById('skuChangeSound');
 
+        // Page visibility handling
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                // Keep connection alive when page is not focused
+                navigator.serviceWorker?.ready.then(registration => {
+                    registration.active?.postMessage({ type: 'KEEP_ALIVE' });
+                });
+            }
+        });
+
+        // Update notification creation to work in background
+        function showNotification(title, body, url = null) {
+            if (Notification.permission === 'granted') {
+                const notification = new Notification(title, {
+                    body: body,
+                    icon: '/favicon.ico',
+                    requireInteraction: true, // Keep notification until user interacts
+                    silent: false // Always play sound
+                });
+
+                if (url) {
+                    notification.onclick = () => {
+                        window.open(url, '_blank');
+                        notification.close();
+                    };
+                }
+            }
+        }
+
         // Update SSE handler
         sse.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -298,39 +334,50 @@
             statusElement.textContent = data.status;
             statusElement.className = 'status-ok';
 
-            // ...existing updates...
+            document.getElementById('uptime').textContent = data.uptime;
+            document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
+            document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
+            document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
+            document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
+            document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
+
+            // Update purchase button state
+            const purchaseButton = document.getElementById('purchaseButton');
+            
+            if (data.metrics.purchase_url) {
+                purchaseButton.href = data.metrics.purchase_url;
+                purchaseButton.classList.add('available');
+                purchaseButton.textContent = 'Purchase Now!';
+                purchaseButton.onclick = null; // Remove click prevention
+            } else {
+                purchaseButton.href = 'javascript:void(0)'; // Prevent navigation
+                purchaseButton.classList.remove('available');
+                purchaseButton.textContent = 'Not Available';
+                purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
+            }
 
             // Check for SKU changes
             if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
                 lastSku = data.metrics.current_sku;
-                skuChangeSound.play();
-                if (Notification.permission === 'granted') {
-                    new Notification('SKU Changed', {
-                        body: `New SKU detected: ${data.metrics.current_sku}`
-                    });
-                }
+                skuChangeSound.play().catch(e => console.log('Audio play prevented by browser'));
+                showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
             }
 
             // Check for purchase URL changes
             if (data.metrics.purchase_url && data.metrics.purchase_url !== lastPurchaseUrl) {
                 lastPurchaseUrl = data.metrics.purchase_url;
-                notificationSound.play();
-                if (Notification.permission === 'granted') {
-                    new Notification('Product Available!', {
-                        body: 'Click to open purchase page',
-                        icon: '/favicon.ico'
-                    }).onclick = () => {
-                        window.open(data.metrics.purchase_url, '_blank');
-                    };
-                }
+                notificationSound.play().catch(e => console.log('Audio play prevented by browser'));
+                showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
             } else if (!data.metrics.purchase_url) {
                 lastPurchaseUrl = '';
             }
-
-            // ...existing button updates...
         };
 
-        // ...existing error handling...
+        sse.onerror = () => {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'disconnected';
+            statusElement.className = 'status-error';
+        };
     </script>
 </body>
 </html>

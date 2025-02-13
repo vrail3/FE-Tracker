@@ -562,15 +562,18 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 	// Create channel for client disconnect detection
 	done := r.Context().Done()
 
-	// Create ticker for updates with longer interval
-	ticker := time.NewTicker(5 * time.Second)
-	pingTicker := time.NewTicker(10 * time.Second)
+	// Create ticker for updates with shorter intervals
+	ticker := time.NewTicker(1 * time.Second)      // More frequent updates
+	pingTicker := time.NewTicker(10 * time.Second) // Keep ping interval
 	defer ticker.Stop()
 	defer pingTicker.Stop()
 
-	// Initial connection message
+	// Initial connection message and data
 	fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"connected\"}\n\n")
 	w.(http.Flusher).Flush()
+
+	// Immediately send first data update
+	sendStatusUpdate(w)
 
 	// Send updates
 	for {
@@ -582,52 +585,56 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, ": ping\n\n")
 			w.(http.Flusher).Flush()
 		case <-ticker.C:
-			metrics.mu.Lock()
-			status := struct {
-				Status  string `json:"status"`
-				Uptime  string `json:"uptime"`
-				Metrics struct {
-					CurrentSKU      string    `json:"current_sku"`
-					ErrorCount24h   int       `json:"error_count_24h"` // Changed from ErrorCount
-					ApiRequests     int       `json:"api_requests_24h"`
-					NtfySent        int       `json:"ntfy_messages_sent"`
-					StartTime       time.Time `json:"start_time"`
-					LastStatusCheck time.Time `json:"last_status_check"`
-					PurchaseURL     string    `json:"purchase_url"`
-				} `json:"metrics"`
-			}{
-				Status: "running",
-				Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
-				Metrics: struct {
-					CurrentSKU      string    `json:"current_sku"`
-					ErrorCount24h   int       `json:"error_count_24h"`
-					ApiRequests     int       `json:"api_requests_24h"`
-					NtfySent        int       `json:"ntfy_messages_sent"`
-					StartTime       time.Time `json:"start_time"`
-					LastStatusCheck time.Time `json:"last_status_check"`
-					PurchaseURL     string    `json:"purchase_url"`
-				}{
-					CurrentSKU:      metrics.CurrentSKU,
-					ErrorCount24h:   errorTracker.get24hErrorCount(), // Use new method
-					ApiRequests:     metrics.ApiRequests,
-					NtfySent:        metrics.NtfySent,
-					StartTime:       metrics.StartTime,
-					LastStatusCheck: metrics.LastStatusCheck,
-					PurchaseURL:     metrics.PurchaseURL,
-				},
-			}
-			metrics.mu.Unlock()
-
-			if data, err := json.Marshal(status); err == nil {
-				if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
-					log.Printf("Error sending event: %v", err)
-					return
-				}
-			}
-
-			w.(http.Flusher).Flush()
+			sendStatusUpdate(w)
 		}
 	}
+}
+
+// Helper function to send status update
+func sendStatusUpdate(w http.ResponseWriter) {
+	metrics.mu.Lock()
+	status := struct {
+		Status  string `json:"status"`
+		Uptime  string `json:"uptime"`
+		Metrics struct {
+			CurrentSKU      string    `json:"current_sku"`
+			ErrorCount24h   int       `json:"error_count_24h"`
+			ApiRequests     int       `json:"api_requests_24h"`
+			NtfySent        int       `json:"ntfy_messages_sent"`
+			StartTime       time.Time `json:"start_time"`
+			LastStatusCheck time.Time `json:"last_status_check"`
+			PurchaseURL     string    `json:"purchase_url"`
+		} `json:"metrics"`
+	}{
+		Status: "running",
+		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+		Metrics: struct {
+			CurrentSKU      string    `json:"current_sku"`
+			ErrorCount24h   int       `json:"error_count_24h"`
+			ApiRequests     int       `json:"api_requests_24h"`
+			NtfySent        int       `json:"ntfy_messages_sent"`
+			StartTime       time.Time `json:"start_time"`
+			LastStatusCheck time.Time `json:"last_status_check"`
+			PurchaseURL     string    `json:"purchase_url"`
+		}{
+			CurrentSKU:      metrics.CurrentSKU,
+			ErrorCount24h:   errorTracker.get24hErrorCount(),
+			ApiRequests:     metrics.ApiRequests,
+			NtfySent:        metrics.NtfySent,
+			StartTime:       metrics.StartTime,
+			LastStatusCheck: metrics.LastStatusCheck,
+			PurchaseURL:     metrics.PurchaseURL,
+		},
+	}
+	metrics.mu.Unlock()
+
+	if data, err := json.Marshal(status); err == nil {
+		if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+			log.Printf("Error sending event: %v", err)
+			return
+		}
+	}
+	w.(http.Flusher).Flush()
 }
 
 // Update performHealthCheck function

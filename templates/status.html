@@ -205,6 +205,15 @@
             font-size: 0.9rem;
             user-select: none;
         }
+
+        /* Add smooth transitions for updates */
+        .metric-value {
+            transition: color 0.3s ease;
+        }
+
+        .metric-value.updating {
+            color: var(--label-color);
+        }
     </style>
 </head>
 <body>
@@ -223,16 +232,16 @@
     <div class="card">
         <h1>FE Tracker Status</h1>
         <p class="mb-2"><span class="metric-label">Status:</span> <span id="status" class="status-ok">loading...</span></p>
-        <p><span class="metric-label">Uptime:</span> <span id="uptime">loading...</span></p>
+        <p><span class="metric-label">Uptime:</span> <span id="uptime" class="metric-value">loading...</span></p>
     </div>
     
     <div class="card">
         <h2>Metrics</h2>
-        <p class="mb-1"><span class="metric-label">Current SKU:</span> <span id="currentSku">loading...</span></p>
-        <p class="mb-1"><span class="metric-label">Errors (24h):</span> <span id="errorCount">loading...</span></p>
-        <p class="mb-1"><span class="metric-label">API Requests (24h):</span> <span id="apiRequests">loading...</span></p>
-        <p class="mb-1"><span class="metric-label">Notifications Sent:</span> <span id="ntfySent">loading...</span></p>
-        <p><span class="metric-label">Start Time:</span> <span id="startTime">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">Current SKU:</span> <span id="currentSku" class="metric-value">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">Errors (24h):</span> <span id="errorCount" class="metric-value">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">API Requests (24h):</span> <span id="apiRequests" class="metric-value">loading...</span></p>
+        <p class="mb-1"><span class="metric-label">Notifications Sent:</span> <span id="ntfySent" class="metric-value">loading...</span></p>
+        <p><span class="metric-label">Start Time:</span> <span id="startTime" class="metric-value">loading...</span></p>
     </div>
 
     <div id="purchaseSection" class="card">
@@ -283,12 +292,13 @@
                 statusElement.textContent = data.status;
                 statusElement.className = 'status-ok';
 
-                document.getElementById('uptime').textContent = data.uptime;
-                document.getElementById('currentSku').textContent = data.metrics.current_sku || 'N/A';
-                document.getElementById('errorCount').textContent = data.metrics.error_count_24h;
-                document.getElementById('apiRequests').textContent = data.metrics.api_requests_24h;
-                document.getElementById('ntfySent').textContent = data.metrics.ntfy_messages_sent;
-                document.getElementById('startTime').textContent = new Date(data.metrics.start_time).toLocaleString();
+                // Update metrics with transition
+                updateMetricWithTransition('currentSku', data.metrics.current_sku || 'N/A');
+                updateMetricWithTransition('errorCount', data.metrics.error_count_24h);
+                updateMetricWithTransition('apiRequests', data.metrics.api_requests_24h);
+                updateMetricWithTransition('ntfySent', data.metrics.ntfy_messages_sent);
+                updateMetricWithTransition('uptime', data.uptime);
+                updateMetricWithTransition('startTime', new Date(data.metrics.start_time).toLocaleString());
 
                 // Update purchase button state
                 const purchaseButton = document.getElementById('purchaseButton');
@@ -308,7 +318,6 @@
                 // Check for SKU changes with persistence
                 if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
                     updateLastSku(data.metrics.current_sku);
-                    showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
                 }
 
                 // Check for purchase URL changes
@@ -364,7 +373,7 @@
         });
 
         // Notification handling
-        let lastSku = localStorage.getItem('lastSku') || '';
+        let lastSku = null;
         let lastPurchaseUrl = '';
         
         async function requestNotificationPermission() {
@@ -428,8 +437,22 @@
 
         // Update localStorage when SKU changes
         function updateLastSku(sku) {
+            // Don't notify on first load
+            if (lastSku !== null) {
+                showNotification('SKU Changed', `New SKU detected: ${sku}`);
+            }
             lastSku = sku;
             localStorage.setItem('lastSku', sku);
+        }
+
+        // Helper function to update metrics with animation
+        function updateMetricWithTransition(elementId, newValue) {
+            const element = document.getElementById(elementId);
+            element.classList.add('updating');
+            setTimeout(() => {
+                element.textContent = newValue;
+                element.classList.remove('updating');
+            }, 150);
         }
     </script>
 </body>

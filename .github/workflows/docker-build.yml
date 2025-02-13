@@ -72,9 +72,17 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Update cache configuration to avoid conflicts
-          cache-from: type=gha,scope=${{ github.ref_name }}-${{ github.workflow }}
-          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ github.workflow }}
+          # Optimize cache configuration
+          cache-from: |
+            type=gha,scope=${{ github.workflow }}
+            type=registry,ref=ghcr.io/${{ github.repository_owner }}/fe-tracker:main
+          cache-to: type=gha,mode=min,scope=${{ github.workflow }}
+          # Add build optimization flags
           provenance: false
           build-args: |
             BUILDKIT_STEP_LOG_MAX_SIZE=10485760
+            DOCKER_BUILDKIT=1
+            BUILDKIT_PROGRESS=plain
+            COMPOSE_DOCKER_CLI_BUILD=1
+          # Add output configuration
+          outputs: type=image,compression=zstd

@@ -89,6 +89,7 @@ Check service status at `http://localhost/status`:
 ## Browser Notifications
 
 The web interface supports desktop notifications for:
+
 - Stock availability
 - SKU changes
 - Connection issues

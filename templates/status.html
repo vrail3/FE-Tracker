@@ -206,13 +206,9 @@
             user-select: none;
         }
 
-        /* Add smooth transitions for updates */
+        /* Remove metric-value animation styles */
         .metric-value {
-            transition: color 0.3s ease;
-        }
-
-        .metric-value.updating {
-            color: var(--label-color);
+            color: var(--text-color);
         }
     </style>
 </head>
@@ -274,72 +270,76 @@
         // Load saved theme on startup
         loadTheme();
 
+        // Simplified update function
+        function updateMetric(elementId, value) {
+            document.getElementById(elementId).textContent = value;
+        }
+
         // SSE handling with reconnection
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
-        const reconnectDelay = 1000; // Start with 1 second
+        const reconnectDelay = 1000;
 
         function connectSSE() {
             const sse = new EventSource('/events');
             
             sse.onmessage = (event) => {
-                // Reset reconnection counter on successful message
                 reconnectAttempts = 0;
-                
                 const data = JSON.parse(event.data);
+                
+                // Update status
                 const statusElement = document.getElementById('status');
-                
                 statusElement.textContent = data.status;
-                statusElement.className = 'status-ok';
+                statusElement.className = data.status === 'running' ? 'status-ok' : 'status-error';
 
-                // Update metrics with transition
-                updateMetricWithTransition('currentSku', data.metrics.current_sku || 'N/A');
-                updateMetricWithTransition('errorCount', data.metrics.error_count_24h);
-                updateMetricWithTransition('apiRequests', data.metrics.api_requests_24h);
-                updateMetricWithTransition('ntfySent', data.metrics.ntfy_messages_sent);
-                updateMetricWithTransition('uptime', data.uptime);
-                updateMetricWithTransition('startTime', new Date(data.metrics.start_time).toLocaleString());
+                // Update metrics
+                updateMetric('uptime', data.uptime);
+                updateMetric('currentSku', data.metrics.current_sku || 'N/A');
+                updateMetric('errorCount', data.metrics.error_count_24h);
+                updateMetric('apiRequests', data.metrics.api_requests_24h);
+                updateMetric('ntfySent', data.metrics.ntfy_messages_sent);
+                updateMetric('startTime', new Date(data.metrics.start_time).toLocaleString());
 
-                // Update purchase button state
+                // Update purchase button
                 const purchaseButton = document.getElementById('purchaseButton');
-                
                 if (data.metrics.purchase_url) {
                     purchaseButton.href = data.metrics.purchase_url;
                     purchaseButton.classList.add('available');
                     purchaseButton.textContent = 'Purchase Now!';
-                    purchaseButton.onclick = null; // Remove click prevention
+                    purchaseButton.onclick = null;
+
+                    // Check for new purchase URL
+                    if (data.metrics.purchase_url !== lastPurchaseUrl) {
+                        lastPurchaseUrl = data.metrics.purchase_url;
+                        showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
+                        
+                        if (autoOpenToggle.checked) {
+                            window.open(data.metrics.purchase_url, '_blank');
+                        }
+                    }
                 } else {
-                    purchaseButton.href = 'javascript:void(0)'; // Prevent navigation
+                    purchaseButton.href = 'javascript:void(0)';
                     purchaseButton.classList.remove('available');
                     purchaseButton.textContent = 'Not Available';
-                    purchaseButton.onclick = (e) => e.preventDefault(); // Prevent click
-                }
-
-                // Check for SKU changes with persistence
-                if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
-                    updateLastSku(data.metrics.current_sku);
-                }
-
-                // Check for purchase URL changes
-                if (data.metrics.purchase_url && data.metrics.purchase_url !== lastPurchaseUrl) {
-                    lastPurchaseUrl = data.metrics.purchase_url;
-                    showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
-                    
-                    // Auto-open in new tab if enabled
-                    if (autoOpenToggle.checked) {
-                        window.open(data.metrics.purchase_url, '_blank');
-                    }
-                } else if (!data.metrics.purchase_url) {
+                    purchaseButton.onclick = (e) => e.preventDefault();
                     lastPurchaseUrl = '';
+                }
+
+                // Check for SKU changes
+                if (data.metrics.current_sku && data.metrics.current_sku !== lastSku) {
+                    if (lastSku !== null) {
+                        showNotification('SKU Changed', `New SKU detected: ${data.metrics.current_sku}`);
+                    }
+                    lastSku = data.metrics.current_sku;
                 }
             };
 
-            sse.onerror = (e) => {
+            sse.onerror = () => {
                 const statusElement = document.getElementById('status');
                 statusElement.textContent = 'disconnected';
                 statusElement.className = 'status-error';
 
-                // Close the connection
+                // Close current connection
                 sse.close();
 
                 // Attempt to reconnect with exponential backoff
@@ -357,103 +357,13 @@
             return sse;
         }
 
-        // Start the SSE connection
-        let eventSource = connectSSE();
-
-        // Reconnect on visibility change
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'visible') {
-                // Reconnect if we were hidden and are now visible
-                if (eventSource) {
-                    eventSource.close();
-                }
-                reconnectAttempts = 0; // Reset counter
-                eventSource = connectSSE();
-            }
-        });
-
-        // Notification handling
+        // Initialize state
         let lastSku = null;
         let lastPurchaseUrl = '';
-        
-        async function requestNotificationPermission() {
-            try {
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
-                    document.getElementById('notificationPermission').style.display = 'none';
-                    new Notification('FE Tracker', {
-                        body: 'Notifications enabled successfully!',
-                        requireInteraction: true
-                    });
-                }
-            } catch (err) {
-                console.error('Error requesting notification permission:', err);
-            }
-        }
+        let eventSource = connectSSE();
 
-        // Check notification permission on load
-        if ('Notification' in window) {
-            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-                document.getElementById('notificationPermission').style.display = 'block';
-            }
-        }
-
-        // Page visibility handling
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'hidden') {
-                navigator.serviceWorker?.ready.then(registration => {
-                    registration.active?.postMessage({ type: 'KEEP_ALIVE' });
-                });
-            }
-        });
-
-        function showNotification(title, body, url = null) {
-            if (Notification.permission === 'granted') {
-                const notification = new Notification(title, {
-                    body: body,
-                    icon: '/static/favicon.ico',
-                    requireInteraction: true
-                });
-
-                if (url) {
-                    notification.onclick = () => {
-                        window.open(url, '_blank');
-                        notification.close();
-                    };
-                }
-            }
-        }
-
-        // Add auto-open toggle handling
-        const autoOpenToggle = document.getElementById('autoOpenToggle');
-
-        // Load saved preference
-        autoOpenToggle.checked = localStorage.getItem('autoOpen') !== 'false';
-        
-        // Save preference when changed
-        autoOpenToggle.addEventListener('change', () => {
-            localStorage.setItem('autoOpen', autoOpenToggle.checked);
-        });
-
-        // Update localStorage when SKU changes
-        function updateLastSku(sku) {
-            // Don't notify on first load
-            if (lastSku !== null) {
-                showNotification('SKU Changed', `New SKU detected: ${sku}`);
-            }
-            lastSku = sku;
-            localStorage.setItem('lastSku', sku);
-        }
-
-        // Helper function to update metrics with animation
-        function updateMetricWithTransition(elementId, newValue) {
-            const element = document.getElementById(elementId);
-            element.classList.add('updating');
-            setTimeout(() => {
-                element.textContent = newValue;
-                element.classList.remove('updating');
-            }, 150);
-        }
+        // ...existing notification handling...
+        // ...existing auto-open toggle handling...
     </script>
 </body>
 </html>

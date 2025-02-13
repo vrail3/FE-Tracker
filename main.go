@@ -122,19 +122,19 @@ func (m *Metrics) updateSKU(sku string) {
 	m.CurrentSKU = sku
 }
 
-func (m *Metrics) updateLastCheck() {
+func (m *Metrics) updateLastCheck(location *time.Location) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.LastStatusCheck = time.Now()
+	m.LastStatusCheck = time.Now().In(location)
 }
 
 // Update AddError method with cooldown
-func (et *ErrorTracking) AddError(err error) {
+func (et *ErrorTracking) AddError(err error, location *time.Location) {
 	metrics.incrementErrors()
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	now := time.Now()
+	now := time.Now().In(location)
 	// Clean old errors
 	recent := []Error{}
 	for _, e := range et.Errors {
@@ -198,7 +198,7 @@ func sendNtfyNotification(title, message string, priority int) error {
 // Update makeRequest to accept context
 func makeRequest(ctx context.Context, url string) (*NvidiaSearchResponse, error) {
 	metrics.incrementApiRequests()
-	metrics.updateLastCheck()
+	metrics.updateLastCheck(time.UTC)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -213,7 +213,7 @@ func makeRequest(ctx context.Context, url string) (*NvidiaSearchResponse, error)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		errorTracker.AddError(err) // Track the error
+		errorTracker.AddError(err, time.UTC) // Track the error
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
@@ -242,6 +242,7 @@ type Config struct {
 	SkuCheckInterval   string
 	ProductURL         string
 	ApiURL             string
+	TimeZone           *time.Location // Add timezone
 }
 
 func loadEnvConfig() (Config, error) {
@@ -253,6 +254,7 @@ func loadEnvConfig() (Config, error) {
 		"STOCK_CHECK_INTERVAL": "",
 		"SKU_CHECK_INTERVAL":   "",
 		"NTFY_TOPIC":           "",
+		"TIMEZONE":             "Europe/Berlin", // Default timezone
 	}
 
 	missingVars := []string{}
@@ -283,6 +285,18 @@ func loadEnvConfig() (Config, error) {
 	apiURL := fmt.Sprintf("https://api.nvidia.partners/edge/product/search?page=1&limit=12&locale=%s&gpu=RTX%%20%s",
 		locale, gpuModel)
 
+	// Load timezone
+	timezone := os.Getenv("TIMEZONE")
+	if timezone == "" {
+		timezone = envVars["TIMEZONE"]
+		log.Printf("Using default timezone: %s", timezone)
+	}
+
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid timezone %s: %v", timezone, err)
+	}
+
 	return Config{
 		Locale:             locale,
 		GpuModel:           gpuModel,
@@ -290,6 +304,7 @@ func loadEnvConfig() (Config, error) {
 		SkuCheckInterval:   envVars["SKU_CHECK_INTERVAL"],
 		ProductURL:         envVars["NVIDIA_PRODUCT_URL"],
 		ApiURL:             apiURL,
+		TimeZone:           location,
 	}, nil
 }
 
@@ -314,7 +329,7 @@ func sendStartupNotification(config Config) error {
 
 // Update checkInventory to accept context
 func checkInventory(ctx context.Context, sku, locale string) error {
-	metrics.updateLastCheck() // Add this line
+	metrics.updateLastCheck(time.UTC) // Add this line
 	url := fmt.Sprintf("https://api.store.nvidia.com/partner/v1/feinventory?skus=%s&locale=%s", sku, locale)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -407,6 +422,7 @@ func cleanup(config Config) {
 	}
 }
 
+// Update daily report check to use timezone
 func startMonitoring(ctx context.Context, config Config) error {
 	// Convert interval strings to durations
 	stockInterval, err := time.ParseDuration(config.StockCheckInterval + "ms")
@@ -432,6 +448,21 @@ func startMonitoring(ctx context.Context, config Config) error {
 
 	// Ensure cleanup runs on exit
 	defer cleanup(config)
+
+	// Add daily report ticker with timezone
+	reportTicker := time.NewTicker(time.Minute)
+	defer reportTicker.Stop()
+
+	go func() {
+		for {
+			now := time.Now().In(config.TimeZone)
+			currentTime := now.Format("15:04")
+			if currentTime == DAILY_REPORT_TIME {
+				sendDailyReport()
+			}
+			<-reportTicker.C
+		}
+	}()
 
 	// Monitoring loop
 	for {

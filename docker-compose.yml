@@ -10,3 +10,4 @@ services:
       STOCK_CHECK_INTERVAL: "1000"
       SKU_CHECK_INTERVAL: "10000"
       NTFY_TOPIC: "example_topic"
+      TIMEZONE: "Europe/Berlin"

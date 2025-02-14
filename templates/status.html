@@ -521,8 +521,58 @@
         let lastPurchaseUrl = '';
         let eventSource = connectSSE();
 
-        // ...existing notification handling...
-        // ...existing auto-open toggle handling...
+        // Notification handling
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notification");
+                return;
+            }
+
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    document.getElementById('notificationPermission').style.display = 'none';
+                    showNotification("Notifications Enabled", "You will now receive notifications when stock becomes available.");
+                } else if (permission === "denied") {
+                    alert("You have blocked notifications. Please enable them in your browser settings to receive stock alerts.");
+                }
+            });
+        }
+
+        function showNotification(title, message, url = null) {
+            if (Notification.permission === "granted") {
+                const notification = new Notification(title, {
+                    body: message,
+                    icon: '/static/favicon.ico',
+                });
+
+                if (url) {
+                    notification.onclick = () => {
+                        window.open(url, '_blank');
+                        notification.close();
+                    };
+                }
+            } else if (Notification.permission === "default") {
+                document.getElementById('notificationPermission').style.display = 'block';
+            }
+        }
+
+        // Auto-open toggle handling
+        const autoOpenToggle = document.getElementById('autoOpenToggle');
+        
+        // Load saved preference
+        autoOpenToggle.checked = localStorage.getItem('autoOpen') !== 'false';
+        
+        // Save preference when changed
+        autoOpenToggle.addEventListener('change', () => {
+            localStorage.setItem('autoOpen', autoOpenToggle.checked);
+        });
+
+        // Check notification permission on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (Notification.permission === "default") {
+                document.getElementById('notificationPermission').style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html>

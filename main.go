@@ -441,6 +441,36 @@ var (
 	reportMutex    sync.Mutex
 )
 
+// Add simple duration formatter with spaces
+func simpleDuration(d time.Duration) string {
+	days := int(d.Hours() / 24)
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+
+	if days > 0 {
+		if hours > 0 {
+			if minutes > 0 {
+				return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+			}
+			return fmt.Sprintf("%dd %dh", days, hours)
+		}
+		return fmt.Sprintf("%dd", days)
+	}
+
+	if hours > 0 {
+		if minutes > 0 {
+			return fmt.Sprintf("%dh %dm", hours, minutes)
+		}
+		return fmt.Sprintf("%dh", hours)
+	}
+
+	if minutes > 0 {
+		return fmt.Sprintf("%dm", minutes)
+	}
+
+	return "just now"
+}
+
 // Update daily status report function to prevent duplicates
 func sendDailyReport() {
 	reportMutex.Lock()
@@ -464,7 +494,7 @@ func sendDailyReport() {
 - API Requests (24h): %d
 - Errors (24h): %d
 - Notifications Sent: %d`,
-		time.Since(metrics.StartTime).Round(time.Second),
+		simpleDuration(time.Since(metrics.StartTime)),
 		metrics.CurrentSKU,
 		metrics.ApiRequests,
 		errorTracker.get24hErrorCount(),
@@ -571,7 +601,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		} `json:"metrics"`
 	}{
 		Status: "running",
-		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+		Uptime: simpleDuration(time.Since(metrics.StartTime)),
 		Metrics: struct {
 			CurrentSKU      string    `json:"current_sku"`
 			ErrorCount24h   int       `json:"error_count_24h"`
@@ -700,7 +730,7 @@ func sendStatusUpdate(w http.ResponseWriter) error {
 		} `json:"metrics"`
 	}{
 		Status: "running",
-		Uptime: time.Since(metrics.StartTime).Round(time.Second).String(),
+		Uptime: simpleDuration(time.Since(metrics.StartTime)),
 		Metrics: struct {
 			CurrentSKU      string    `json:"current_sku"`
 			ErrorCount24h   int       `json:"error_count_24h"`

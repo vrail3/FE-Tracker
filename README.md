@@ -1,5 +1,5 @@
 # FE-Tracker
-                                                                      
+
 A robust stock tracking service for NVIDIA Founders Edition graphics cards with real-time notifications and mobile-friendly interface.
 
 ## Features

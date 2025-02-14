@@ -435,6 +435,50 @@ func cleanup(config Config) {
 	}
 }
 
+// Add last report time tracking
+var (
+	lastReportTime time.Time
+	reportMutex    sync.Mutex
+)
+
+// Update daily status report function to prevent duplicates
+func sendDailyReport() {
+	reportMutex.Lock()
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	lastReport := lastReportTime.Format("2006-01-02")
+
+	// Only send if we haven't sent a report today
+	if today == lastReport {
+		reportMutex.Unlock()
+		return
+	}
+
+	// Update last report time before sending
+	lastReportTime = now
+	reportMutex.Unlock()
+
+	metrics.mu.Lock()
+	report := fmt.Sprintf(`- Uptime: %s
+- Current SKU: %s
+- API Requests (24h): %d
+- Errors (24h): %d
+- Notifications Sent: %d`,
+		time.Since(metrics.StartTime).Round(time.Second),
+		metrics.CurrentSKU,
+		metrics.ApiRequests,
+		errorTracker.get24hErrorCount(),
+		metrics.NtfySent,
+	)
+	metrics.mu.Unlock()
+
+	if err := sendNtfyNotification("Status Report", report, 3); err != nil {
+		log.Printf("Failed to send daily report: %v", err)
+	} else {
+		log.Printf("Daily report sent successfully")
+	}
+}
+
 // Update daily report check to use timezone
 func startMonitoring(ctx context.Context, config Config) error {
 	// Convert interval strings to durations
@@ -711,27 +755,6 @@ func performHealthCheck() bool {
 	}
 
 	return true
-}
-
-// Update daily status report function
-func sendDailyReport() {
-	metrics.mu.Lock()
-	report := fmt.Sprintf(`- Uptime: %s
-- Current SKU: %s
-- API Requests (24h): %d
-- Errors (24h): %d
-- Notifications Sent: %d`,
-		time.Since(metrics.StartTime).Round(time.Second),
-		metrics.CurrentSKU,
-		metrics.ApiRequests,
-		errorTracker.get24hErrorCount(),
-		metrics.NtfySent,
-	)
-	metrics.mu.Unlock()
-
-	if err := sendNtfyNotification("Status Report", report, 3); err != nil {
-		log.Printf("Failed to send daily report: %v", err)
-	}
 }
 
 // Update log format to be simpler

@@ -74,23 +74,28 @@ func (et *ErrorTracking) get24hErrorCount() int {
 
 	count := 0
 	now := time.Now()
+	dayAgo := now.Add(-24 * time.Hour)
+
+	// Only count errors from last 24 hours
 	for _, err := range et.Errors {
-		if now.Sub(err.Timestamp) <= 24*time.Hour {
+		if err.Timestamp.After(dayAgo) {
 			count++
 		}
 	}
+
 	return count
 }
 
 // Add new types for status tracking
 type Metrics struct {
-	CurrentSKU      string    `json:"current_sku"`
-	ErrorCount      int       `json:"error_count"`
-	ApiRequests     int       `json:"api_requests_24h"`
-	NtfySent        int       `json:"ntfy_messages_sent"`
-	StartTime       time.Time `json:"start_time"`
-	LastStatusCheck time.Time `json:"last_status_check"`
-	PurchaseURL     string    `json:"purchase_url"`
+	CurrentSKU      string      `json:"current_sku"`
+	ErrorCount      int         `json:"error_count"`
+	ApiRequests     int         `json:"api_requests_24h"`
+	NtfySent        int         `json:"ntfy_messages_sent"`
+	StartTime       time.Time   `json:"start_time"`
+	LastStatusCheck time.Time   `json:"last_status_check"`
+	PurchaseURL     string      `json:"purchase_url"`
+	ApiRequestTimes []time.Time // Add this field
 	mu              sync.Mutex
 }
 
@@ -98,17 +103,28 @@ type Metrics struct {
 var metrics = Metrics{
 	StartTime:       time.Now(),
 	LastStatusCheck: time.Now(),
+	ApiRequestTimes: make([]time.Time, 0),
 }
 
 func (m *Metrics) incrementApiRequests() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.ApiRequests++
-	// Reset counter if last check was more than 24h ago
-	if time.Since(m.LastStatusCheck) > 24*time.Hour {
-		m.ApiRequests = 1
-		m.LastStatusCheck = time.Now()
+
+	now := time.Now()
+
+	// Remove requests older than 24 hours
+	recent := make([]time.Time, 0)
+	for _, t := range m.ApiRequestTimes {
+		if now.Sub(t) <= 24*time.Hour {
+			recent = append(recent, t)
+		}
 	}
+
+	// Add new request
+	recent = append(recent, now)
+	m.ApiRequestTimes = recent
+	m.ApiRequests = len(recent)
+	m.LastStatusCheck = now
 }
 
 func (m *Metrics) incrementErrors() {
@@ -150,35 +166,38 @@ func (et *ErrorTracking) AddError(err error) {
 	defer et.mu.Unlock()
 
 	now := time.Now()
-	// Clean old errors
-	recent := make([]Error, 0, et.maxErrors)
+	dayAgo := now.Add(-24 * time.Hour)
+
+	// Keep only errors from last 24 hours
+	recent := make([]Error, 0)
 	for _, e := range et.Errors {
-		if now.Sub(e.Timestamp) < et.Window {
+		if e.Timestamp.After(dayAgo) {
 			recent = append(recent, e)
 		}
 	}
 
-	// Add new error if under limit
-	if len(recent) < et.maxErrors {
-		recent = append(recent, Error{Timestamp: now, Err: err})
-	}
+	// Add new error
+	recent = append(recent, Error{Timestamp: now, Err: err})
 	et.Errors = recent
 
-	// Check if we should notify (with 1-minute cooldown)
-	if len(et.Errors) >= et.Threshold && now.Sub(et.LastNotify) > et.Window {
-		// Only send notification if cooldown period has passed
+	// Check notification threshold within last minute
+	recentCount := 0
+	minuteAgo := now.Add(-time.Minute)
+	for _, e := range recent {
+		if e.Timestamp.After(minuteAgo) {
+			recentCount++
+		}
+	}
+
+	if recentCount >= et.Threshold && now.Sub(et.LastNotify) > et.Window {
 		if now.Sub(et.lastErrorNotify) > time.Minute {
 			msg := fmt.Sprintf("High error rate detected!\nLast error: %v\nTotal errors in last minute: %d",
-				err, len(et.Errors))
+				err, recentCount)
 			if err := sendNtfyNotification("Error Threshold Reached", msg, 4); err != nil {
 				log.Printf("Failed to send error notification: %v", err)
 			}
 			et.lastErrorNotify = now
 			et.LastNotify = now
-			et.Errors = nil // Reset after notification
-		} else {
-			log.Printf("Suppressing error notification due to cooldown (last notification: %v ago)",
-				now.Sub(et.lastErrorNotify).Round(time.Second))
 		}
 	}
 }

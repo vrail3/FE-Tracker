@@ -745,37 +745,34 @@ func sendStatusUpdate(w http.ResponseWriter) error {
 			NtfySent        int       `json:"ntfy_messages_sent"`
 			StartTime       time.Time `json:"start_time"`
 			LastStatusCheck time.Time `json:"last_status_check"`
-			PurchaseURL     string    `json:"purchase_url"`
+			PurchaseURL     string    `json:"purchase_url,omitempty"`
 		} `json:"metrics"`
 	}{
 		Status: "running",
 		Uptime: simpleDuration(time.Since(metrics.StartTime)),
-		Metrics: struct {
-			CurrentSKU      string    `json:"current_sku"`
-			ErrorCount24h   int       `json:"error_count_24h"`
-			ApiRequests     int       `json:"api_requests_24h"`
-			NtfySent        int       `json:"ntfy_messages_sent"`
-			StartTime       time.Time `json:"start_time"`
-			LastStatusCheck time.Time `json:"last_status_check"`
-			PurchaseURL     string    `json:"purchase_url"`
-		}{
-			CurrentSKU:      metrics.CurrentSKU,
-			ErrorCount24h:   errorTracker.get24hErrorCount(),
-			ApiRequests:     metrics.ApiRequests,
-			NtfySent:        metrics.NtfySent,
-			StartTime:       metrics.StartTime,
-			LastStatusCheck: metrics.LastStatusCheck,
-			PurchaseURL:     metrics.PurchaseURL,
-		},
 	}
+
+	// Copy metrics data
+	status.Metrics.CurrentSKU = metrics.CurrentSKU
+	status.Metrics.ErrorCount24h = errorTracker.get24hErrorCount()
+	status.Metrics.ApiRequests = metrics.ApiRequests
+	status.Metrics.NtfySent = metrics.NtfySent
+	status.Metrics.StartTime = metrics.StartTime
+	status.Metrics.LastStatusCheck = metrics.LastStatusCheck
+	status.Metrics.PurchaseURL = metrics.PurchaseURL
 	metrics.mu.Unlock()
 
-	if data, err := json.Marshal(status); err == nil {
-		if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
-			log.Printf("Error sending event: %v", err)
-			return err
-		}
-		w.(http.Flusher).Flush()
+	data, err := json.Marshal(status)
+	if err != nil {
+		return fmt.Errorf("marshal error: %v", err)
+	}
+
+	if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+		return fmt.Errorf("write error: %v", err)
+	}
+
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
 	}
 	return nil
 }

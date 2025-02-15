@@ -29,6 +29,18 @@ A robust stock tracking service for NVIDIA Founders Edition graphics cards with 
   - Error counts
   - Notifications sent
 
+## Improvements to be made
+
+- Notification Sounds/TTS with toggle
+- Browser Notifications for Errors
+- Prevent sleep/standby mode with toogle
+- SSE caching improvements
+- major refactoring for maintainability and readability
+- better testing
+- fun screensaver with toggle
+- proxy support for api requests
+- pwa support
+
 ## Quick Start
 
 1. Get the docker-compose.yml file:

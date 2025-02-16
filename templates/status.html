@@ -95,6 +95,8 @@
             border-radius: 20px;
             box-shadow: 0 2px 4px var(--shadow-color);
             z-index: 1000;
+            /* Add padding at bottom to make room for tooltips */
+            padding-bottom: 2rem;
         }
 
         .theme-toggle {
@@ -372,14 +374,13 @@
         .toggle-tooltip {
             position: relative;
             display: inline-block;
-            z-index: 1001; /* Higher than wrapper but lower than tooltip */
         }
 
         .toggle-tooltip::after {
             content: attr(data-tooltip);
             position: absolute;
-            bottom: -30px;
             left: 50%;
+            bottom: -2rem; /* Position below the toggle */
             transform: translateX(-50%);
             padding: 4px 8px;
             border-radius: 4px;
@@ -391,11 +392,21 @@
             transition: opacity 0.3s;
             pointer-events: none;
             box-shadow: 0 2px 4px var(--shadow-color);
-            z-index: 9999; /* Ensure tooltips are always on top */
+            z-index: 1000;
         }
 
         .toggle-tooltip:hover::after {
             opacity: 1;
+        }
+
+        /* Ensure tooltips stay in view on small screens */
+        @media (max-width: 767px) {
+            .toggle-tooltip::after {
+                min-width: max-content;
+                white-space: normal;
+                text-align: center;
+                max-width: 150px;
+            }
         }
     </style>
 </head>
@@ -407,7 +418,7 @@
         <div class="toggle-tooltip" data-tooltip="Prevent sleep">
             <input type="checkbox" class="theme-toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">
         </div>
-        <div class="toggle-tooltip" data-tooltip="Text-to-speech notifications">
+        <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
             <input type="checkbox" class="theme-toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()">
         </div>
     </div>
@@ -488,9 +499,15 @@
             document.getElementById('sleepToggle').checked = preventSleep;
         }
 
+        function loadTTSPreference() {
+            const ttsEnabled = localStorage.getItem('ttsEnabled') === 'true';
+            document.getElementById('ttsToggle').checked = ttsEnabled;
+        }
+
         // Load saved theme on startup
         loadTheme();
         loadSleepPreference();
+        loadTTSPreference();
 
         // Simplified update function
         function updateMetric(elementId, value) {
@@ -693,6 +710,9 @@
         function toggleTTS() {
             ttsEnabled = document.getElementById('ttsToggle').checked;
             localStorage.setItem('ttsEnabled', ttsEnabled);
+            if (ttsEnabled) {
+                speak('TTS enabled');
+            }
         }
 
         function speak(text) {

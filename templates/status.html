@@ -88,7 +88,8 @@
             top: 0.5rem;
             right: 0.5rem;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            gap: 0.5rem;
             background: var(--card-bg);
             padding: 0.5rem;
             border-radius: 20px;
@@ -127,6 +128,15 @@
         .theme-toggle:checked::after {
             content: "☀️";
             transform: translateX(26px);
+        }
+
+        /* Update sleep toggle styles */
+        .sleep-toggle::after {
+            content: "💤" !important;
+        }
+
+        .sleep-toggle:checked::after {
+            content: "👁️" !important;
         }
 
         /* Purchase button */
@@ -348,11 +358,44 @@
                 margin-bottom: 0; /* Remove margin from last row */
             }
         }
+
+        /* Add tooltip styles */
+        .toggle-tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .toggle-tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .toggle-tooltip:hover::after {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <div class="theme-toggle-wrapper">
-        <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
+        <div class="toggle-tooltip" data-tooltip="Toggle theme">
+            <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
+        </div>
+        <div class="toggle-tooltip" data-tooltip="Prevent sleep">
+            <input type="checkbox" class="theme-toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">
+        </div>
     </div>
 
     <!-- Add notification permission button -->
@@ -426,8 +469,14 @@
             localStorage.setItem('theme', theme);
         }
 
+        function loadSleepPreference() {
+            const preventSleep = localStorage.getItem('preventSleep') === 'true';
+            document.getElementById('sleepToggle').checked = preventSleep;
+        }
+
         // Load saved theme on startup
         loadTheme();
+        loadSleepPreference();
 
         // Simplified update function
         function updateMetric(elementId, value) {
@@ -571,6 +620,53 @@
         document.addEventListener('DOMContentLoaded', () => {
             if (Notification.permission === "default") {
                 document.getElementById('notificationPermission').style.display = 'block';
+            }
+        });
+
+        // Add wake lock handling
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock is active');
+            } catch (err) {
+                console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+                document.getElementById('sleepToggle').checked = false;
+            }
+        }
+
+        async function releaseWakeLock() {
+            if (wakeLock) {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock released');
+            }
+        }
+
+        async function toggleSleep() {
+            const preventSleep = document.getElementById('sleepToggle').checked;
+            if (preventSleep) {
+                await requestWakeLock();
+            } else {
+                await releaseWakeLock();
+            }
+            localStorage.setItem('preventSleep', preventSleep);
+        }
+
+        // Load saved sleep prevention preference
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (localStorage.getItem('preventSleep') === 'true' && 
+                navigator.wakeLock !== undefined) {
+                document.getElementById('sleepToggle').checked = true;
+                await requestWakeLock();
+            }
+        });
+
+        // Handle visibility change
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
             }
         });
     </script>

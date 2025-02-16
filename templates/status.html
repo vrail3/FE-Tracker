@@ -150,6 +150,32 @@
             content: "🔊" !important;
         }
 
+        /* Add screensaver styles */
+        .screensaver {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .screensaver.active {
+            opacity: 0.3;
+        }
+
+        /* Add screensaver toggle styles */
+        .screensaver-toggle::after {
+            content: "🎬" !important;
+        }
+
+        .screensaver-toggle:checked::after {
+            content: "📺" !important;
+        }
+
         /* Purchase button */
         .purchase-section {
             text-align: center;
@@ -411,6 +437,7 @@
     </style>
 </head>
 <body>
+    <canvas id="screensaver" class="screensaver"></canvas>
     <div class="theme-toggle-wrapper">
         <div class="toggle-tooltip" data-tooltip="Toggle theme">
             <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
@@ -420,6 +447,9 @@
         </div>
         <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
             <input type="checkbox" class="theme-toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()">
+        </div>
+        <div class="toggle-tooltip" data-tooltip="Screensaver">
+            <input type="checkbox" class="theme-toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()">
         </div>
     </div>
 
@@ -449,7 +479,7 @@
             <a id="purchaseButton" href="#" target="_blank" class="purchase-button">
                 Not Available
             </a>
-            <div class="auto-open-toggle">
+            <div class="auto-open-toggle"></div>
                 <input type="checkbox" id="autoOpenToggle" class="toggle-switch" checked>
                 <label for="autoOpenToggle">Auto-open purchase page when available</label>
             </div>
@@ -755,6 +785,99 @@
             document.getElementById('ttsToggle').checked = ttsEnabled;
             // ...existing DOMContentLoaded code...
         });
+
+        // Screensaver handling
+        let screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
+        const canvas = document.getElementById('screensaver');
+        const ctx = canvas.getContext('2d');
+        let animationId = null;
+        let dvdImage = new Image();
+        dvdImage.src = 'https://assets.nvidia.partners/images/png/RTX5080-3QTR-Back-Right.png';
+
+        // DVD animation state
+        let x = 0;
+        let y = 0;
+        let xSpeed = 0.5;
+        let ySpeed = 0.5;
+        const scale = 0.2; // Scale down the image
+        let imageWidth = 0;
+        let imageHeight = 0;
+
+        dvdImage.onload = function() {
+            imageWidth = dvdImage.width * scale;
+            imageHeight = dvdImage.height * scale;
+            resizeCanvas();
+            if (screensaverEnabled) {
+                startScreensaver();
+            }
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // Reset position when resizing
+            x = Math.random() * (canvas.width - imageWidth);
+            y = Math.random() * (canvas.height - imageHeight);
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update position
+            x += xSpeed;
+            y += ySpeed;
+
+            // Bounce off walls
+            if (x + imageWidth > canvas.width || x < 0) {
+                xSpeed = -xSpeed;
+                x = x < 0 ? 0 : canvas.width - imageWidth;
+            }
+            if (y + imageHeight > canvas.height || y < 0) {
+                ySpeed = -ySpeed;
+                y = y < 0 ? 0 : canvas.height - imageHeight;
+            }
+
+            // Draw image
+            ctx.drawImage(dvdImage, x, y, imageWidth, imageHeight);
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function startScreensaver() {
+            canvas.classList.add('active');
+            if (!animationId) {
+                animate();
+            }
+        }
+
+        function stopScreensaver() {
+            canvas.classList.remove('active');
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
+        function toggleScreensaver() {
+            screensaverEnabled = document.getElementById('screensaverToggle').checked;
+            localStorage.setItem('screensaverEnabled', screensaverEnabled);
+            
+            if (screensaverEnabled) {
+                startScreensaver();
+            } else {
+                stopScreensaver();
+            }
+        }
+
+        // Load screensaver preference on startup
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('screensaverToggle').checked = screensaverEnabled;
+            if (screensaverEnabled) {
+                startScreensaver();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
 </html>

@@ -457,6 +457,64 @@
                 display: block;
             }
         }
+
+        /* Add speed slider styles */
+        .speed-slider-container {
+            position: fixed;
+            right: 4rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--card-bg);
+            padding: 1rem 0.5rem;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .speed-slider-container.visible {
+            display: flex;
+        }
+
+        .speed-slider {
+            writing-mode: bt-lr;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 150px;
+            transform: rotate(-180deg);
+            background: var(--toggle-bg);
+            border-radius: 10px;
+            outline: none;
+        }
+
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .speed-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .speed-label {
+            transform: rotate(-90deg);
+            white-space: nowrap;
+            color: var(--text-color);
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
     </style>
 </head>
 <body>
@@ -465,7 +523,7 @@
         <div class="toggle-tooltip" data-tooltip="Toggle theme">
             <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
         </div>
-        <div class="toggle-tooltip" data-tooltip="Prevent sleep">
+        <div id="sleepToggleWrapper" class="toggle-tooltip" data-tooltip="Prevent sleep" style="display: none;">
             <input type="checkbox" class="theme-toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">
         </div>
         <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
@@ -474,6 +532,12 @@
         <div class="screensaver-toggle-wrapper toggle-tooltip" data-tooltip="Screensaver">
             <input type="checkbox" class="theme-toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()">
         </div>
+    </div>
+
+    <!-- Add speed slider after screensaver canvas -->
+    <div class="speed-slider-container" id="speedSliderContainer">
+        <span class="speed-label">Speed: <span id="speedValue">1x</span></span>
+        <input type="range" min="0.1" max="3" step="0.1" value="1" class="speed-slider" id="speedSlider">
     </div>
 
     <!-- Add notification permission button -->
@@ -749,10 +813,12 @@
 
         // Load saved sleep prevention preference
         document.addEventListener('DOMContentLoaded', async () => {
-            if (localStorage.getItem('preventSleep') === 'true' && 
-                navigator.wakeLock !== undefined) {
-                document.getElementById('sleepToggle').checked = true;
-                await requestWakeLock();
+            if ('wakeLock' in navigator) {
+                document.getElementById('sleepToggleWrapper').style.display = 'block';
+                if (localStorage.getItem('preventSleep') === 'true') {
+                    document.getElementById('sleepToggle').checked = true;
+                    await requestWakeLock();
+                }
             }
         });
 
@@ -826,8 +892,10 @@
         // DVD animation state
         let x = 0;
         let y = 0;
-        let xSpeed = 0.5;
-        let ySpeed = 0.5;
+        let baseSpeed = 0.5;
+        let speedMultiplier = 1;
+        let xSpeed = baseSpeed;
+        let ySpeed = baseSpeed;
         const scale = 0.1; // Scale down the image
         let imageWidth = 0;
         let imageHeight = 0;
@@ -895,12 +963,26 @@
             localStorage.setItem('screensaverY', y);
         }
 
+        // Add speed slider handling
+        const speedSlider = document.getElementById('speedSlider');
+        const speedSliderContainer = document.getElementById('speedSliderContainer');
+        const speedValue = document.getElementById('speedValue');
+
+        speedSlider.addEventListener('input', (e) => {
+            speedMultiplier = parseFloat(e.target.value);
+            speedValue.textContent = speedMultiplier.toFixed(1) + 'x';
+            xSpeed = baseSpeed * speedMultiplier * Math.sign(xSpeed);
+            ySpeed = baseSpeed * speedMultiplier * Math.sign(ySpeed);
+            localStorage.setItem('screensaverSpeed', speedMultiplier);
+        });
+
         function toggleScreensaver() {
             // Don't enable screensaver on small screens
             if (window.innerWidth < 768) {
                 document.getElementById('screensaverToggle').checked = false;
                 localStorage.setItem('screensaverEnabled', false);
                 stopScreensaver();
+                speedSliderContainer.classList.remove('visible');
                 return;
             }
 
@@ -909,10 +991,28 @@
             
             if (screensaverEnabled) {
                 startScreensaver();
+                speedSliderContainer.classList.add('visible');
             } else {
                 stopScreensaver();
+                speedSliderContainer.classList.remove('visible');
             }
         }
+
+        // Load saved speed preference
+        document.addEventListener('DOMContentLoaded', () => {
+            // ...existing DOMContentLoaded code...
+            
+            const savedSpeed = parseFloat(localStorage.getItem('screensaverSpeed')) || 1;
+            speedSlider.value = savedSpeed;
+            speedMultiplier = savedSpeed;
+            speedValue.textContent = savedSpeed.toFixed(1) + 'x';
+            xSpeed = baseSpeed * speedMultiplier;
+            ySpeed = baseSpeed * speedMultiplier;
+
+            if (screensaverEnabled) {
+                speedSliderContainer.classList.add('visible');
+            }
+        });
 
         // Load screensaver preference on startup
         document.addEventListener('DOMContentLoaded', () => {

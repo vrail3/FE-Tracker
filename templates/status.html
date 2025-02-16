@@ -717,9 +717,35 @@
 
         function speak(text) {
             if (ttsEnabled && 'speechSynthesis' in window) {
+                // Cancel any ongoing speech
+                speechSynthesis.cancel();
+
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'en-US';
                 utterance.rate = 1;
+                // Set volume to maximum to help with background playback
+                utterance.volume = 1;
+
+                // Create an audio context to keep audio working in background
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Resume audio context if it's suspended
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                // Ensure speech synthesis doesn't get interrupted
+                utterance.onend = () => {
+                    // Keep audio context active
+                    audioContext.resume();
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('TTS Error:', event);
+                    // Try to recover by resuming audio context
+                    audioContext.resume();
+                };
+
                 speechSynthesis.speak(utterance);
             }
         }

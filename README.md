@@ -18,6 +18,8 @@ A robust stock tracking service for NVIDIA Founders Edition graphics cards with 
   - Auto-open purchase URLs
   - Real-time metric updates
   - Connection status monitoring
+  - Prevent sleep/standby mode with toggle
+  - Notifications play TTS with toggle
 - HTTP status endpoint for monitoring
 - Docker support with multi-arch builds
 - Error rate monitoring with cooldown
@@ -31,9 +33,7 @@ A robust stock tracking service for NVIDIA Founders Edition graphics cards with 
 
 ## Improvements to be made
 
-- Notification Sounds/TTS with toggle
 - Browser Notifications for Errors
-- Prevent sleep/standby mode with toogle
 - SSE caching improvements
 - major refactoring for maintainability and readability
 - better testing

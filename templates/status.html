@@ -161,6 +161,7 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.3s ease;
+            display: none; /* Hide by default on mobile */
         }
 
         .screensaver.active {
@@ -434,6 +435,28 @@
                 max-width: 150px;
             }
         }
+
+        /* Update screensaver styles */
+        .screensaver {
+            /* ...existing screensaver styles... */
+            display: none; /* Hide by default on mobile */
+        }
+
+        /* Hide screensaver toggle on small screens */
+        .screensaver-toggle-wrapper {
+            display: none; /* Hide by default */
+        }
+
+        /* Only show screensaver and toggle on larger screens */
+        @media (min-width: 768px) {
+            .screensaver {
+                display: block;
+            }
+            
+            .screensaver-toggle-wrapper {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -448,7 +471,7 @@
         <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
             <input type="checkbox" class="theme-toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()">
         </div>
-        <div class="toggle-tooltip" data-tooltip="Screensaver">
+        <div class="screensaver-toggle-wrapper toggle-tooltip" data-tooltip="Screensaver">
             <input type="checkbox" class="theme-toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()">
         </div>
     </div>
@@ -534,10 +557,16 @@
             document.getElementById('ttsToggle').checked = ttsEnabled;
         }
 
+        function loadScreensaverPreference() {
+            const screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
+            document.getElementById('screensaverToggle').checked = screensaverEnabled;
+        }
+
         // Load saved theme on startup
         loadTheme();
         loadSleepPreference();
         loadTTSPreference();
+        loadScreensaverPreference();
 
         // Simplified update function
         function updateMetric(elementId, value) {
@@ -799,7 +828,7 @@
         let y = 0;
         let xSpeed = 0.5;
         let ySpeed = 0.5;
-        const scale = 0.2; // Scale down the image
+        const scale = 0.1; // Scale down the image
         let imageWidth = 0;
         let imageHeight = 0;
 
@@ -815,9 +844,12 @@
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            // Reset position when resizing
-            x = Math.random() * (canvas.width - imageWidth);
-            y = Math.random() * (canvas.height - imageHeight);
+            // Reset position when resizing only if canvas changes
+            if (x + imageWidth > canvas.width || y + imageHeight > canvas.height) {
+                x = Math.random() * (canvas.width - imageWidth);
+                y = Math.random() * (canvas.height - imageHeight);
+            }
+            
         }
 
         function animate() {
@@ -847,6 +879,9 @@
             if (!animationId) {
                 animate();
             }
+            // Load position from last time
+            x = parseFloat(localStorage.getItem('screensaverX')) || 0;
+            y = parseFloat(localStorage.getItem('screensaverY')) || 0;
         }
 
         function stopScreensaver() {
@@ -855,9 +890,20 @@
                 cancelAnimationFrame(animationId);
                 animationId = null;
             }
+            // save position for next time
+            localStorage.setItem('screensaverX', x);
+            localStorage.setItem('screensaverY', y);
         }
 
         function toggleScreensaver() {
+            // Don't enable screensaver on small screens
+            if (window.innerWidth < 768) {
+                document.getElementById('screensaverToggle').checked = false;
+                localStorage.setItem('screensaverEnabled', false);
+                stopScreensaver();
+                return;
+            }
+
             screensaverEnabled = document.getElementById('screensaverToggle').checked;
             localStorage.setItem('screensaverEnabled', screensaverEnabled);
             
@@ -877,7 +923,15 @@
         });
 
         // Handle window resize
-        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            // Disable screensaver on small screens
+            if (window.innerWidth < 768 && screensaverEnabled) {
+                document.getElementById('screensaverToggle').checked = false;
+                localStorage.setItem('screensaverEnabled', false);
+                stopScreensaver();
+            }
+        });
     </script>
 </body>
 </html>

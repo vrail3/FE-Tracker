@@ -211,51 +211,35 @@ class PreferencesManager {
     toggleTTS() {
         this.ttsEnabled = document.getElementById('ttsToggle').checked;
         localStorage.setItem('ttsEnabled', this.ttsEnabled);
-        //say tts enabled or disabled
-        if (this.ttsEnabled) {
-            this.speak('TTS enabled');
-        }
+        this.speak('TTS enabled');
     }
 
     async speak(text) {
-        if (!this.ttsEnabled || !('speechSynthesis' in window)) return;
-
-        try {
+        if (this.ttsEnabled && 'speechSynthesis' in window) {
             // Cancel any ongoing speech
             speechSynthesis.cancel();
-            this.isSpeaking = false;
-            
-            // Wait a moment for any previous speech to fully stop
-            await new Promise(resolve => setTimeout(resolve, 50));
-
+    
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'en-US';
             utterance.rate = 1;
+            // Set volume to maximum to help with background playback
             utterance.volume = 1;
-
-            // Create new audio context
+    
+            // Create an audio context to keep audio working in background
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Resume audio context if it's suspended
             if (audioContext.state === 'suspended') {
-                await audioContext.resume();
+                audioContext.resume();
             }
-
+    
+            // Ensure speech synthesis doesn't get interrupted
             utterance.onend = () => {
-                this.isSpeaking = false;
+                // Keep audio context active
                 audioContext.resume();
             };
-
-            utterance.onerror = (event) => {
-                console.error('TTS Error:', event);
-                this.isSpeaking = false;
-                audioContext.resume();
-            };
-
-            this.isSpeaking = true;
+    
             speechSynthesis.speak(utterance);
-
-        } catch (error) {
-            console.error('Speech synthesis error:', error);
-            this.isSpeaking = false;
         }
     }
 
@@ -327,9 +311,9 @@ class NotificationManager {
             }
 
             // Only trigger TTS if we have access to preferences
-            if (window.app?.preferences?.ttsEnabled) {
-                window.app.preferences.speak(title);
-            }
+            // if (window.app?.preferences?.ttsEnabled) {
+            //     window.app.preferences.speak(title);
+            // }
         } else if (Notification.permission === "default") {
             document.getElementById('notificationPermission').style.display = 'block';
         }

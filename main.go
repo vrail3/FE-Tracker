@@ -810,6 +810,17 @@ func setupLogger() {
 	// Remove previous SetPrefix call
 }
 
+// Add this function before main()
+func staticFileServer() http.Handler {
+	fs := http.FileServer(http.Dir("static"))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".js") {
+			w.Header().Set("Content-Type", "application/javascript")
+		}
+		fs.ServeHTTP(w, r)
+	})
+}
+
 // Update server configuration in main()
 func main() {
 	// Add command line flag for health check
@@ -865,7 +876,7 @@ func main() {
 	}()
 
 	// Add static file serving
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", staticFileServer()))
 
 	// Update existing route handlers
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

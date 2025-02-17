@@ -22,22 +22,22 @@
         <nav class="theme-toggle-wrapper">
 
             <div class="toggle-tooltip" data-tooltip="Toggle theme">
-                <input type="checkbox" class="toggle theme-toggle" id="themeToggle" onchange="toggleTheme()"
+                <input type="checkbox" class="toggle theme-toggle" id="themeToggle" onchange="window.app.preferences.toggleTheme()"
                     ${localStorage.getItem('theme') === 'light' ? 'checked' : ''}>
             </div>
 
             <div class="toggle-tooltip" data-tooltip="Prevent sleep" >
-                <input type="checkbox" class="toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()"
+                <input type="checkbox" class="toggle sleep-toggle" id="sleepToggle" onchange="window.app.preferences.toggleSleep()"
                     ${localStorage.getItem('preventSleep') === 'true' ? 'checked' : ''}>
             </div>
 
             <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
-                <input type="checkbox" class="toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()"
+                <input type="checkbox" class="toggle tts-toggle" id="ttsToggle" onchange="window.app.preferences.toggleTTS()"
                     ${localStorage.getItem('ttsEnabled') === 'true' ? 'checked' : ''}>
             </div>
 
             <div class="toggle-tooltip" data-tooltip="Screensaver">
-                <input type="checkbox" class="toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()"
+                <input type="checkbox" class="toggle screensaver-toggle" id="screensaverToggle" onchange="window.app.preferences.toggleScreensaver()"
                     ${localStorage.getItem('screensaverEnabled') === 'true' ? 'checked' : ''}>
             </div>
 
@@ -117,7 +117,7 @@
 
     </main>
 
-    <script src="/static/script.js"></script>
+    <script src="/static/script_new.js"></script>
 
 </body>
 

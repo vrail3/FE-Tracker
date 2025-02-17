@@ -78,7 +78,7 @@ function connectSSE() {
                 lastPurchaseUrl = data.metrics.purchase_url;
                 showNotification('Product Available!', 'Click to open purchase page', data.metrics.purchase_url);
                 
-                if (autoOpenToggle.checked) {
+                if (autoToggle.checked) {
                     window.open(data.metrics.purchase_url, '_blank');
                 }
             }
@@ -166,14 +166,22 @@ function showNotification(title, message, url = null) {
 }
 
 // Auto-open toggle handling
-const autoOpenToggle = document.getElementById('autoOpenToggle');
+const autoToggle = document.getElementById('autoToggle');
+autoToggle.checked = localStorage.getItem('autoOpen') !== 'false';
+autoToggle.addEventListener('change', () => {
+    localStorage.setItem('autoOpen', autoToggle.checked);
+});
 
-// Load saved preference
-autoOpenToggle.checked = localStorage.getItem('autoOpen') !== 'false';
-
-// Save preference when changed
-autoOpenToggle.addEventListener('change', () => {
-    localStorage.setItem('autoOpen', autoOpenToggle.checked);
+// Add this near your other initialization code
+document.getElementById('autoOpenWrapper').addEventListener('click', function(e) {
+    const toggle = document.getElementById('autoToggle');
+    // Don't interfere with direct clicks on toggle or label
+    if (e.target === toggle || e.target.matches('label[for="autoToggle"]')) {
+        return;
+    }
+    // For other elements, toggle the checkbox
+    toggle.checked = !toggle.checked;
+    toggle.dispatchEvent(new Event('change'));
 });
 
 // Check notification permission on page load
@@ -483,3 +491,9 @@ function checkErrorRate(currentErrorCount) {
     // Update last error count
     lastErrorCount = currentErrorCount;
 }
+
+// Event listeners for toggles
+document.getElementById('themeToggle').addEventListener('change', toggleTheme);
+document.getElementById('sleepToggle').addEventListener('change', toggleSleep);
+document.getElementById('ttsToggle').addEventListener('change', toggleTTS);
+document.getElementById('screensaverToggle').addEventListener('change', toggleScreensaver);

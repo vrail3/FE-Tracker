@@ -1,4 +1,3 @@
-
 /* Theme variables */
 :root[data-theme="light"] {
     --bg-color: #f5f5f5;
@@ -98,8 +97,8 @@ body {
     justify-content: center;
 }
 
-/* Theme toggle switch - now used for all toggles */
-.theme-toggle {
+/* Base toggle styles */
+.toggle {
     position: relative;
     width: 50px;
     height: 24px;
@@ -112,7 +111,7 @@ body {
     padding: 0;
 }
 
-.theme-toggle::after {
+.toggle::after {
     content: "";
     position: absolute;
     top: 2px;
@@ -126,47 +125,62 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 12px;
+    /* Add these properties to center emojis */
+    text-align: center;
+    line-height: 20px; /* Match height of the circle */
+    padding-left: 0.5px; /* Slight adjustment for visual centering */
+}
+
+.toggle:checked::after {
+    transform: translateX(26px);
 }
 
 /* Theme toggle specific */
-.theme-toggle.theme-toggle::after {
+.theme-toggle::after {
     content: "🌙";
 }
 
-.theme-toggle.theme-toggle:checked::after {
+.theme-toggle:checked::after {
     content: "☀️";
-    transform: translateX(26px);
 }
 
 /* Sleep toggle specific */
-.theme-toggle.sleep-toggle::after {
+.sleep-toggle::after {
     content: "💤";
 }
 
-.theme-toggle.sleep-toggle:checked::after {
+.sleep-toggle:checked::after {
     content: "👁️";
-    transform: translateX(26px);
 }
 
 /* TTS toggle specific */
-.theme-toggle.tts-toggle::after {
+.tts-toggle::after {
     content: "🔇";
 }
 
-.theme-toggle.tts-toggle:checked::after {
+.tts-toggle:checked::after {
     content: "🔊";
-    transform: translateX(26px);
 }
 
 /* Screensaver toggle specific */
-.theme-toggle.screensaver-toggle::after {
+.screensaver-toggle::after {
     content: "🎬";
 }
 
-.theme-toggle.screensaver-toggle:checked::after {
+.screensaver-toggle:checked::after {
     content: "📺";
-    transform: translateX(26px);
 }
+
+/* Auto toggle specific */
+.auto-toggle::after {
+    content: "❌";
+}
+
+.auto-toggle:checked::after {
+    content: "✅";
+}
+
+/* Remove old theme-toggle class styles as they're now merged into .toggle */
 
 /* Purchase button */
 .purchase-section {
@@ -225,6 +239,8 @@ body {
     background: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 2px 4px var(--shadow-color);
+    cursor: pointer;
+    gap: 8px;
 }
 
 .toggle-switch {
@@ -264,6 +280,9 @@ body {
     color: var(--text-color);
     font-size: 0.9rem;
     user-select: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
     cursor: pointer;
 }
 
@@ -501,6 +520,8 @@ body {
     background: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 2px 4px var(--shadow-color);
+    cursor: pointer;
+    gap: 8px;
 }
 
 /* Add vertical centering for toggle and label */
@@ -517,6 +538,7 @@ body {
     cursor: pointer;
     display: flex;
     align-items: center;
+    cursor: pointer;
 }
 
 /* Mobile-specific auto-open toggle styles */

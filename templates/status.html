@@ -85,18 +85,26 @@
         /* Theme toggle switch */
         .theme-toggle-wrapper {
             position: fixed;
-            top: 0.5rem;
-            right: 0.5rem;
+            top: 0.75rem;
+            right: 0.75rem;
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.5rem; /* Consistent spacing between all toggles */
             background: var(--card-bg);
-            padding: 0.5rem;
-            border-radius: 20px;
+            padding: 0.5rem; /* Consistent padding */
+            border-radius: 0.75rem;
             box-shadow: 0 2px 4px var(--shadow-color);
             z-index: 1000;
         }
 
+        .theme-toggle-wrapper > div {
+            height: 24px; /* Force same height for all toggle containers */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Theme toggle switch - now used for all toggles */
         .theme-toggle {
             position: relative;
             width: 50px;
@@ -107,10 +115,11 @@
             cursor: pointer;
             transition: all 0.3s ease;
             margin: 0;
+            padding: 0;
         }
 
         .theme-toggle::after {
-            content: "🌙";
+            content: "";
             position: absolute;
             top: 2px;
             left: 2px;
@@ -125,54 +134,44 @@
             font-size: 12px;
         }
 
-        .theme-toggle:checked::after {
+        /* Theme toggle specific */
+        .theme-toggle.theme-toggle::after {
+            content: "🌙";
+        }
+
+        .theme-toggle.theme-toggle:checked::after {
             content: "☀️";
             transform: translateX(26px);
         }
 
-        /* Update sleep toggle styles */
-        .sleep-toggle::after {
-            content: "💤" !important;
+        /* Sleep toggle specific */
+        .theme-toggle.sleep-toggle::after {
+            content: "💤";
         }
 
-        .sleep-toggle:checked::after {
-            content: "👁️" !important;
+        .theme-toggle.sleep-toggle:checked::after {
+            content: "👁️";
+            transform: translateX(26px);
         }
 
-        /* Add TTS toggle styles */
-        .tts-toggle::after {
-            content: "🔇" !important;
+        /* TTS toggle specific */
+        .theme-toggle.tts-toggle::after {
+            content: "🔇";
         }
 
-        .tts-toggle:checked::after {
-            content: "🔊" !important;
+        .theme-toggle.tts-toggle:checked::after {
+            content: "🔊";
+            transform: translateX(26px);
         }
 
-        /* Add screensaver styles */
-        .screensaver {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            display: none; /* Hide by default on mobile */
+        /* Screensaver toggle specific */
+        .theme-toggle.screensaver-toggle::after {
+            content: "🎬";
         }
 
-        .screensaver.active {
-            opacity: 0.3;
-        }
-
-        /* Add screensaver toggle styles */
-        .screensaver-toggle::after {
-            content: "🎬" !important;
-        }
-
-        .screensaver-toggle:checked::after {
-            content: "📺" !important;
+        .theme-toggle.screensaver-toggle:checked::after {
+            content: "📺";
+            transform: translateX(26px);
         }
 
         /* Purchase button */
@@ -243,6 +242,7 @@
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
+            margin: 0;
         }
 
         .toggle-switch::after {
@@ -255,6 +255,7 @@
             background: white;
             border-radius: 10px;
             transition: all 0.3s ease;
+            margin: 0;
         }
 
         .toggle-switch:checked {
@@ -399,6 +400,11 @@
         .toggle-tooltip {
             position: relative;
             display: inline-block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
         }
 
         .toggle-tooltip::after {
@@ -408,11 +414,12 @@
             top: 100%; /* Changed from bottom to top */
             transform: translateX(-50%);
             margin-top: 0.5rem; /* Add some space between toggle and tooltip */
-            padding: 4px 8px;
+            padding: 0.25rem 0.5rem;
             border-radius: 4px;
             background: var(--card-bg);
             color: var(--text-color);
-            font-size: 12px;
+            font-size: 0.75rem;
+            line-height: 1.2;
             white-space: nowrap;
             opacity: 0;
             transition: opacity 0.3s;
@@ -447,6 +454,7 @@
             opacity: 0;
             transition: opacity 0.3s ease;
             display: none; /* Hide by default on mobile */
+            margin: 0;
         }
 
         .screensaver.active {
@@ -474,7 +482,7 @@
     <canvas id="screensaver" class="screensaver"></canvas>
     <div class="theme-toggle-wrapper">
         <div class="toggle-tooltip" data-tooltip="Toggle theme">
-            <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
+            <input type="checkbox" class="theme-toggle theme-toggle" id="themeToggle" onchange="toggleTheme()">
         </div>
         <div id="sleepToggleWrapper" class="toggle-tooltip" data-tooltip="Prevent sleep" style="display: none;">
             <input type="checkbox" class="theme-toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">

@@ -5,7 +5,6 @@ RUN apk --no-cache add ca-certificates tzdata
 
 # Copy all necessary files
 COPY main.go .
-COPY templates/ templates/
 COPY static/ static/
 RUN go mod init fe-tracker
 
@@ -27,7 +26,6 @@ FROM scratch
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo/ /usr/share/zoneinfo/
-COPY --from=builder /src/templates/ templates/
 COPY --from=builder /src/static/ static/
 COPY --from=compressor /app/fe-tracker .
 

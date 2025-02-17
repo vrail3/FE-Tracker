@@ -209,7 +209,7 @@ var ntfyTopic string
 const DAILY_REPORT_TIME = "09:00"
 
 // Add template caching
-var templates = template.Must(template.ParseFiles("templates/status.html"))
+var templates = template.Must(template.ParseFiles("static/index.html"))
 
 // Update ntfy function to handle priorities
 func sendNtfyNotification(title, message string, priority int) error {
@@ -877,7 +877,7 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
-		templates.ExecuteTemplate(w, "status.html", nil)
+		http.ServeFile(w, r, "static/index.html")
 	})
 
 	http.HandleFunc("/status", handleStatus)

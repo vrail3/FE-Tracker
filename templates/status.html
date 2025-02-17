@@ -223,14 +223,14 @@
         /* Add toggle switch styles */
         .auto-open-toggle {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 0.75rem;
-            margin-top: 1rem;
-            padding: 0.5rem;
+            margin-top: 1.5rem;
+            padding: 0.75rem;
             background: var(--card-bg);
-            border-radius: 8px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px var(--shadow-color);
         }
 
         .toggle-switch {
@@ -270,6 +270,7 @@
             color: var(--text-color);
             font-size: 0.9rem;
             user-select: none;
+            cursor: pointer;
         }
 
         /* Remove metric-value animation styles */
@@ -453,17 +454,19 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.3s ease;
-            display: none; /* Hide by default on mobile */
-            margin: 0;
+            display: none; /* Hide by default */
         }
 
         .screensaver.active {
             opacity: 0.3;
         }
 
-        /* Hide screensaver toggle on small screens */
-        .screensaver-toggle-wrapper {
-            display: none; /* Hide by default */
+        /* Hide screensaver and toggle on small screens */
+        @media (max-width: 767px) {
+            .screensaver,
+            .screensaver-toggle-wrapper {
+                display: none !important; /* Force hide on mobile */
+            }
         }
 
         /* Only show screensaver and toggle on larger screens */
@@ -473,7 +476,67 @@
             }
             
             .screensaver-toggle-wrapper {
-                display: block;
+                display: flex !important; /* Force show on desktop */
+            }
+        }
+
+        /* Mobile-specific auto-open toggle styles */
+        @media (max-width: 767px) {
+            .auto-open-toggle {
+                flex-direction: column;
+                gap: 0.5rem;
+                padding: 0.5rem;
+                margin-top: 1rem;
+            }
+
+            .auto-open-toggle label {
+                text-align: center;
+                font-size: 0.85rem;
+                line-height: 1.2;
+            }
+        }
+
+        /* Update auto-open toggle styles */
+        .auto-open-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            padding: 0.75rem;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        /* Add vertical centering for toggle and label */
+        .auto-open-toggle input,
+        .auto-open-toggle label {
+            margin: 0;
+            line-height: 24px; /* Match toggle height */
+        }
+
+        .auto-open-toggle label {
+            color: var(--text-color);
+            font-size: 0.9rem;
+            user-select: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Mobile-specific auto-open toggle styles */
+        @media (max-width: 767px) {
+            .auto-open-toggle {
+                flex-direction: column;
+                gap: 0.5rem;
+                padding: 0.5rem;
+                margin-top: 1rem;
+            }
+
+            .auto-open-toggle label {
+                text-align: center;
+                font-size: 0.85rem;
             }
         }
     </style>
@@ -521,9 +584,9 @@
             <a id="purchaseButton" href="#" target="_blank" class="purchase-button">
                 Not Available
             </a>
-            <div class="auto-open-toggle"></div>
-                <input type="checkbox" id="autoOpenToggle" class="toggle-switch" checked>
-                <label for="autoOpenToggle">Auto-open purchase page when available</label>
+            <div class="auto-open-toggle">
+                <input type="checkbox" id="autoOpenToggle" class="toggle-switch">
+                <label for="autoOpenToggle">Auto-open when available</label>
             </div>
         </div>
     </div>

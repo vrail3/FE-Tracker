@@ -429,11 +429,11 @@
             z-index: 1000;
         }
 
-        .toggle-tooltip:hover::after {
+        .toggle-tooltip.show-tooltip::after {
             opacity: 1;
         }
 
-        /* Ensure tooltips stay in view on small screens */
+        /* Mobile-specific tooltip styles */
         @media (max-width: 767px) {
             .toggle-tooltip::after {
                 min-width: max-content;
@@ -1012,6 +1012,51 @@
                 document.getElementById('screensaverToggle').checked = false;
                 localStorage.setItem('screensaverEnabled', false);
                 stopScreensaver();
+            }
+        });
+
+        // Mobile tooltip handling
+        document.addEventListener('DOMContentLoaded', () => {
+            const isMobile = window.innerWidth <= 767;
+            const tooltips = document.querySelectorAll('.toggle-tooltip');
+            let hideTimeout;
+
+            if (isMobile) {
+                tooltips.forEach(tooltip => {
+                    tooltip.addEventListener('touchstart', (e) => {
+                        // Clear any existing timeout
+                        clearTimeout(hideTimeout);
+                        
+                        // Remove show-tooltip class from all tooltips
+                        tooltips.forEach(t => t.classList.remove('show-tooltip'));
+                        
+                        // Add show-tooltip class to current tooltip
+                        tooltip.classList.add('show-tooltip');
+                        
+                        // Set timeout to hide tooltip after 2 seconds
+                        hideTimeout = setTimeout(() => {
+                            tooltip.classList.remove('show-tooltip');
+                        }, 2000);
+                    });
+                });
+
+                // Hide tooltips when clicking/touching anywhere else
+                document.addEventListener('touchstart', (e) => {
+                    if (!e.target.closest('.toggle-tooltip')) {
+                        tooltips.forEach(tooltip => tooltip.classList.remove('show-tooltip'));
+                        clearTimeout(hideTimeout);
+                    }
+                });
+            } else {
+                // Desktop hover behavior
+                tooltips.forEach(tooltip => {
+                    tooltip.addEventListener('mouseenter', () => {
+                        tooltip.classList.add('show-tooltip');
+                    });
+                    tooltip.addEventListener('mouseleave', () => {
+                        tooltip.classList.remove('show-tooltip');
+                    });
+                });
             }
         });
     </script>

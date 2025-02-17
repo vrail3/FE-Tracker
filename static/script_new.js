@@ -5,11 +5,6 @@ class FETracker {
         this.preferences = new PreferencesManager();
         this.notifications = new NotificationManager();
         this.metrics = new MetricsManager();
-        this.screensaver = new Screensaver();
-
-        // Make screensaver globally accessible
-        window.app = this;
-        window.screensaver = this.screensaver;
 
         // Other initialization
         this.eventSource = null;
@@ -137,7 +132,6 @@ class PreferencesManager {
         this.loadTheme();
         this.loadSleepPreference();
         this.loadTTSPreference();
-        this.loadScreensaverPreference();
         this.loadAutoOpenPreference();
     }
 
@@ -158,25 +152,6 @@ class PreferencesManager {
     loadTTSPreference() {
         this.ttsEnabled = localStorage.getItem('ttsEnabled') === 'true';
         document.getElementById('ttsToggle').checked = this.ttsEnabled;
-    }
-
-    loadScreensaverPreference() {
-        const screensaverToggle = document.getElementById('screensaverToggle');
-        // Don't load screensaver on small screens
-        if (window.innerWidth < 768) {
-            screensaverToggle.checked = false;
-            localStorage.setItem('screensaverEnabled', false);
-            if (this.app) {
-                this.app.screensaver.stop();
-            }
-            return;
-        }
-        
-        const screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
-        screensaverToggle.checked = screensaverEnabled;
-        if (screensaverEnabled && this.app) {
-            this.app.screensaver.start();
-        }
     }
 
     loadAutoOpenPreference() {
@@ -403,85 +378,6 @@ class MetricsManager {
         const statusElement = document.getElementById('status');
         statusElement.textContent = status;
         statusElement.className = status === 'running' ? 'status-ok' : 'status-error';
-    }
-}
-
-class Screensaver {
-    constructor() {
-        this.canvas = document.getElementById('screensaver');
-        this.ctx = this.canvas.getContext('2d');
-        this.animationId = null;
-        this.image = new Image();
-        this.image.src = 'https://assets.nvidia.partners/images/png/RTX5080-3QTR-Back-Right.png';
-        
-        // animation state
-        this.x = 0;
-        this.y = 0;
-        this.speed = 0.5;
-        this.scale = 0.1;
-        this.imageWidth = 0;
-        this.imageHeight = 0;
-
-        // Initialize when image loads
-        this.image.onload = () => {
-            this.imageWidth = this.image.width * this.scale;
-            this.imageHeight = this.image.height * this.scale;
-            this.resizeCanvas();
-        };
-
-        // Handle window resize
-        window.addEventListener('resize', () => this.resizeCanvas());
-    }
-
-    start() {
-        this.canvas.classList.add('active');
-        if (!this.animationId) {
-            this.animate();
-        }
-    }
-
-    stop() {
-        this.canvas.classList.remove('active');
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
-        // Save position for next time
-        localStorage.setItem('screensaverX', this.x);
-        localStorage.setItem('screensaverY', this.y);
-    }
-
-    animate() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Update position
-        this.x += this.speed;
-        this.y += this.speed;
-
-        // Bounce off walls
-        if (this.x + this.imageWidth > this.canvas.width || this.x < 0) {
-            this.speed = -this.speed;
-            this.x = this.x < 0 ? 0 : this.canvas.width - this.imageWidth;
-        }
-        if (this.y + this.imageHeight > this.canvas.height || this.y < 0) {
-            this.ySpeed = -this.speed;
-            this.y = this.y < 0 ? 0 : this.canvas.height - this.imageHeight;
-        }
-
-        // Draw image
-        this.ctx.drawImage(this.image, this.x, this.y, this.imageWidth, this.imageHeight);
-        this.animationId = requestAnimationFrame(() => this.animate());
-    }
-
-    resizeCanvas() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        // Reset position when resizing only if canvas changes
-        if (this.x + this.imageWidth > this.canvas.width || 
-            this.y + this.imageHeight > this.canvas.height) {
-            this.x = Math.random() * (this.canvas.width - this.imageWidth);
-            this.y = Math.random() * (this.canvas.height - this.imageHeight);
-        }
     }
 }
 

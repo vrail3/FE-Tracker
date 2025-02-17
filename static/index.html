@@ -14,9 +14,6 @@
 
 <body>
 
-    <!-- Screensaver -->
-    <canvas id="screensaver" class="screensaver"></canvas>
-
     <!-- Controls Section -->
     <header class="controls-section">
         <nav class="theme-toggle-wrapper">
@@ -34,11 +31,6 @@
             <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
                 <input type="checkbox" class="toggle tts-toggle" id="ttsToggle" onchange="window.app.preferences.toggleTTS()"
                     ${localStorage.getItem('ttsEnabled') === 'true' ? 'checked' : ''}>
-            </div>
-
-            <div class="toggle-tooltip" data-tooltip="Screensaver">
-                <input type="checkbox" class="toggle screensaver-toggle" id="screensaverToggle" onchange="window.app.preferences.toggleScreensaver()"
-                    ${localStorage.getItem('screensaverEnabled') === 'true' ? 'checked' : ''}>
             </div>
 
         </nav>

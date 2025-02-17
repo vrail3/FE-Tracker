@@ -24,7 +24,6 @@ class FETracker {
         document.getElementById('themeToggle').addEventListener('change', () => this.preferences.toggleTheme());
         document.getElementById('sleepToggle').addEventListener('change', () => this.preferences.toggleSleep());
         document.getElementById('ttsToggle').addEventListener('change', () => this.preferences.toggleTTS());
-        document.getElementById('screensaverToggle').addEventListener('change', () => this.preferences.toggleScreensaver());
         document.getElementById('autoOpenWrapper').addEventListener('click', this.handleAutoOpenClick.bind(this));
     }
 
@@ -323,7 +322,6 @@ class MetricsManager {
         this.updateMetric('uptime', data.uptime);
         this.updateMetric('currentSku', data.metrics.current_sku || 'N/A');
         this.updateMetric('errorCount', data.metrics.error_count_24h);
-        this.updateMetric('apiRequests', data.metrics.api_requests_24h);
         this.updateMetric('ntfySent', data.metrics.ntfy_messages_sent);
         this.updateMetric('startTime', new Date(data.metrics.start_time).toLocaleString());
 

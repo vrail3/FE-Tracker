@@ -22,19 +22,23 @@
         <nav class="theme-toggle-wrapper">
 
             <div class="toggle-tooltip" data-tooltip="Toggle theme">
-                <input type="checkbox" class="toggle theme-toggle" id="themeToggle" onchange="toggleTheme()">
+                <input type="checkbox" class="toggle theme-toggle" id="themeToggle" onchange="toggleTheme()"
+                    ${localStorage.getItem('theme') === 'light' ? 'checked' : ''}>
             </div>
 
             <div class="toggle-tooltip" data-tooltip="Prevent sleep" >
-                <input type="checkbox" class="toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">
+                <input type="checkbox" class="toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()"
+                    ${localStorage.getItem('preventSleep') === 'true' ? 'checked' : ''}>
             </div>
 
             <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
-                <input type="checkbox" class="toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()">
+                <input type="checkbox" class="toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()"
+                    ${localStorage.getItem('ttsEnabled') === 'true' ? 'checked' : ''}>
             </div>
 
             <div class="toggle-tooltip" data-tooltip="Screensaver">
-                <input type="checkbox" class="toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()">
+                <input type="checkbox" class="toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()"
+                    ${localStorage.getItem('screensaverEnabled') === 'true' ? 'checked' : ''}>
             </div>
 
         </nav>
@@ -73,7 +77,8 @@
                     Not Available
                 </a>
                 <div class="auto-open-toggle" id="autoOpenWrapper">
-                    <input type="checkbox" id="autoToggle" class="toggle auto-toggle">
+                    <input type="checkbox" id="autoToggle" class="toggle auto-toggle"
+                        ${localStorage.getItem('autoOpen') !== 'false' ? 'checked' : ''}>
                     <label for="autoToggle" class="auto-open-label">Auto-open when available</label>
                 </div>
             </div>

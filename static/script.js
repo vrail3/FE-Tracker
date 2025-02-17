@@ -1,3 +1,44 @@
+// Initialize everything when DOM is loaded - place this at the top of the file
+document.addEventListener('DOMContentLoaded', () => {
+    // Load all preferences before adding event listeners
+    const theme = localStorage.getItem('theme') || 'dark';
+    const preventSleep = localStorage.getItem('preventSleep') === 'true';
+    const ttsEnabled = localStorage.getItem('ttsEnabled') === 'true';
+    const screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
+    const autoOpen = localStorage.getItem('autoOpen') !== 'false';
+
+    // Set initial states without triggering change events
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('themeToggle').checked = theme === 'light';
+    document.getElementById('sleepToggle').checked = preventSleep;
+    document.getElementById('ttsToggle').checked = ttsEnabled;
+    document.getElementById('screensaverToggle').checked = screensaverEnabled;
+    document.getElementById('autoToggle').checked = autoOpen;
+
+    // Initialize features based on preferences
+    if (preventSleep && 'wakeLock' in navigator) {
+        requestWakeLock();
+    }
+    
+    if (screensaverEnabled && window.innerWidth >= 768) {
+        startScreensaver();
+    }
+
+    // Now add event listeners
+    document.getElementById('themeToggle').addEventListener('change', toggleTheme);
+    document.getElementById('sleepToggle').addEventListener('change', toggleSleep);
+    document.getElementById('ttsToggle').addEventListener('change', toggleTTS);
+    document.getElementById('screensaverToggle').addEventListener('change', toggleScreensaver);
+    
+    // Initialize other features
+    if (Notification.permission === "default") {
+        document.getElementById('notificationPermission').style.display = 'block';
+    }
+
+    // Initialize tooltips
+    initializeTooltips();
+});
+
 // Theme handling
 function loadTheme() {
     const theme = localStorage.getItem('theme') || 'dark';
@@ -14,6 +55,9 @@ function toggleTheme() {
 function loadSleepPreference() {
     const preventSleep = localStorage.getItem('preventSleep') === 'true';
     document.getElementById('sleepToggle').checked = preventSleep;
+    if (preventSleep && 'wakeLock' in navigator) {
+        requestWakeLock();
+    }
 }
 
 function loadTTSPreference() {
@@ -24,13 +68,12 @@ function loadTTSPreference() {
 function loadScreensaverPreference() {
     const screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
     document.getElementById('screensaverToggle').checked = screensaverEnabled;
+    if (screensaverEnabled && window.innerWidth >= 768) {
+        startScreensaver();
+    }
 }
 
-// Load saved theme on startup
-loadTheme();
-loadSleepPreference();
-loadTTSPreference();
-loadScreensaverPreference();
+
 
 // Simplified update function
 function updateMetric(elementId, value) {
@@ -184,13 +227,6 @@ document.getElementById('autoOpenWrapper').addEventListener('click', function(e)
     toggle.dispatchEvent(new Event('change'));
 });
 
-// Check notification permission on page load
-document.addEventListener('DOMContentLoaded', () => {
-    if (Notification.permission === "default") {
-        document.getElementById('notificationPermission').style.display = 'block';
-    }
-});
-
 // Add wake lock handling
 let wakeLock = null;
 
@@ -285,12 +321,6 @@ function speak(text) {
         speechSynthesis.speak(utterance);
     }
 }
-
-// Load TTS preference on startup
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('ttsToggle').checked = ttsEnabled;
-    // ...existing DOMContentLoaded code...
-});
 
 // Screensaver handling
 let screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
@@ -389,14 +419,6 @@ function toggleScreensaver() {
     }
 }
 
-// Load screensaver preference on startup
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('screensaverToggle').checked = screensaverEnabled;
-    if (screensaverEnabled) {
-        startScreensaver();
-    }
-});
-
 // Handle window resize
 window.addEventListener('resize', () => {
     resizeCanvas();
@@ -405,51 +427,6 @@ window.addEventListener('resize', () => {
         document.getElementById('screensaverToggle').checked = false;
         localStorage.setItem('screensaverEnabled', false);
         stopScreensaver();
-    }
-});
-
-// Mobile tooltip handling
-document.addEventListener('DOMContentLoaded', () => {
-    const isMobile = window.innerWidth <= 767;
-    const tooltips = document.querySelectorAll('.toggle-tooltip');
-    let hideTimeout;
-
-    if (isMobile) {
-        tooltips.forEach(tooltip => {
-            tooltip.addEventListener('touchstart', (e) => {
-                // Clear any existing timeout
-                clearTimeout(hideTimeout);
-                
-                // Remove show-tooltip class from all tooltips
-                tooltips.forEach(t => t.classList.remove('show-tooltip'));
-                
-                // Add show-tooltip class to current tooltip
-                tooltip.classList.add('show-tooltip');
-                
-                // Set timeout to hide tooltip after 2 seconds
-                hideTimeout = setTimeout(() => {
-                    tooltip.classList.remove('show-tooltip');
-                }, 2000);
-            });
-        });
-
-        // Hide tooltips when clicking/touching anywhere else
-        document.addEventListener('touchstart', (e) => {
-            if (!e.target.closest('.toggle-tooltip')) {
-                tooltips.forEach(tooltip => tooltip.classList.remove('show-tooltip'));
-                clearTimeout(hideTimeout);
-            }
-        });
-    } else {
-        // Desktop hover behavior
-        tooltips.forEach(tooltip => {
-            tooltip.addEventListener('mouseenter', () => {
-                tooltip.classList.add('show-tooltip');
-            });
-            tooltip.addEventListener('mouseleave', () => {
-                tooltip.classList.remove('show-tooltip');
-            });
-        });
     }
 });
 
@@ -497,3 +474,48 @@ document.getElementById('themeToggle').addEventListener('change', toggleTheme);
 document.getElementById('sleepToggle').addEventListener('change', toggleSleep);
 document.getElementById('ttsToggle').addEventListener('change', toggleTTS);
 document.getElementById('screensaverToggle').addEventListener('change', toggleScreensaver);
+
+// Move the tooltip initialization to a separate function
+function initializeTooltips() {
+    const isMobile = window.innerWidth <= 767;
+    const tooltips = document.querySelectorAll('.toggle-tooltip');
+    let hideTimeout;
+
+    if (isMobile) {
+        tooltips.forEach(tooltip => {
+            tooltip.addEventListener('touchstart', (e) => {
+                // Clear any existing timeout
+                clearTimeout(hideTimeout);
+                
+                // Remove show-tooltip class from all tooltips
+                tooltips.forEach(t => t.classList.remove('show-tooltip'));
+                
+                // Add show-tooltip class to current tooltip
+                tooltip.classList.add('show-tooltip');
+                
+                // Set timeout to hide tooltip after 2 seconds
+                hideTimeout = setTimeout(() => {
+                    tooltip.classList.remove('show-tooltip');
+                }, 2000);
+            });
+        });
+
+        // Hide tooltips when clicking/touching anywhere else
+        document.addEventListener('touchstart', (e) => {
+            if (!e.target.closest('.toggle-tooltip')) {
+                tooltips.forEach(tooltip => tooltip.classList.remove('show-tooltip'));
+                clearTimeout(hideTimeout);
+            }
+        });
+    } else {
+        // Desktop hover behavior
+        tooltips.forEach(tooltip => {
+            tooltip.addEventListener('mouseenter', () => {
+                tooltip.classList.add('show-tooltip');
+            });
+            tooltip.addEventListener('mouseleave', () => {
+                tooltip.classList.remove('show-tooltip');
+            });
+        });
+    }
+}

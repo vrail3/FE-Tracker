@@ -161,9 +161,20 @@ class PreferencesManager {
     }
 
     loadScreensaverPreference() {
+        const screensaverToggle = document.getElementById('screensaverToggle');
+        // Don't load screensaver on small screens
+        if (window.innerWidth < 768) {
+            screensaverToggle.checked = false;
+            localStorage.setItem('screensaverEnabled', false);
+            if (this.app) {
+                this.app.screensaver.stop();
+            }
+            return;
+        }
+        
         const screensaverEnabled = localStorage.getItem('screensaverEnabled') === 'true';
-        document.getElementById('screensaverToggle').checked = screensaverEnabled;
-        if (screensaverEnabled && window.innerWidth >= 768 && this.app) {
+        screensaverToggle.checked = screensaverEnabled;
+        if (screensaverEnabled && this.app) {
             this.app.screensaver.start();
         }
     }

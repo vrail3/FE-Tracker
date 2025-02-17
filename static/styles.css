@@ -474,25 +474,6 @@ body {
     opacity: 0.3;
 }
 
-/* Hide screensaver and toggle on small screens */
-@media (max-width: 767px) {
-    .screensaver,
-    .screensaver-toggle-wrapper {
-        display: none !important; /* Force hide on mobile */
-    }
-}
-
-/* Only show screensaver and toggle on larger screens */
-@media (min-width: 768px) {
-    .screensaver {
-        display: block;
-    }
-    
-    .screensaver-toggle-wrapper {
-        display: flex !important; /* Force show on desktop */
-    }
-}
-
 /* Mobile-specific auto-open toggle styles */
 @media (max-width: 767px) {
     .auto-open-toggle {
@@ -553,5 +534,12 @@ body {
     .auto-open-toggle label {
         text-align: center;
         font-size: 0.85rem;
+    }
+}
+
+/* Hide screensaver toggle on mobile */
+@media (max-width: 767px) {
+    .toggle-tooltip[data-tooltip="Screensaver"] {
+        display: none;
     }
 }

@@ -598,6 +598,10 @@
             <span id="currentSku" class="metric-value">loading...</span>
         </div>
         <div class="metric-row">
+            <span class="metric-label">Errors (1min):</span>
+            <span id="errorRate" class="metric-value">loading...</span>
+        </div>
+        <div class="metric-row">
             <span class="metric-label">Errors (24h):</span>
             <span id="errorCount" class="metric-value">loading...</span>
         </div>
@@ -679,6 +683,9 @@
                 updateMetric('apiRequests', data.metrics.api_requests_24h);
                 updateMetric('ntfySent', data.metrics.ntfy_messages_sent);
                 updateMetric('startTime', new Date(data.metrics.start_time).toLocaleString());
+
+                // Check error rate when error count updates
+                checkErrorRate(data.metrics.error_count_24h);
 
                 // Update purchase button
                 const purchaseButton = document.getElementById('purchaseButton');
@@ -1059,6 +1066,45 @@
                 });
             }
         });
+
+        // Add these variables at the top of the script
+        const errorBuffer = [];
+        const ONE_MINUTE = 60 * 1000; // 1 minute in milliseconds
+        let lastErrorCount = 0;
+
+        function checkErrorRate(currentErrorCount) {
+            // Calculate new errors
+            const newErrors = currentErrorCount - lastErrorCount;
+            if (newErrors > 0) {
+                // Add new error timestamp
+                const now = Date.now();
+                for (let i = 0; i < newErrors; i++) {
+                    errorBuffer.push(now);
+                }
+            }
+
+            // Remove errors older than 1 minute
+            const cutoff = Date.now() - ONE_MINUTE;
+            while (errorBuffer.length > 0 && errorBuffer[0] < cutoff) {
+                errorBuffer.shift();
+            }
+
+            // Update the error rate display
+            const errorRate = errorBuffer.length;
+            updateMetric('errorRate', errorRate);
+
+            // Check if error rate is high
+            if (errorRate >= 5) {
+                showNotification(
+                    'High Error Rate', 
+                    `${errorRate} errors detected in the last minute!`
+                );
+                speak('Warning: High error rate detected');
+            }
+
+            // Update last error count
+            lastErrorCount = currentErrorCount;
+        }
     </script>
 </body>
 </html>

@@ -321,10 +321,10 @@ class NotificationManager {
                 };
             }
 
-            // Only trigger TTS if we have access to preferences
-            // if (window.app?.preferences?.ttsEnabled) {
-            //     window.app.preferences.speak(title);
-            // }
+            if (window.app?.preferences?.ttsEnabled) {
+                window.app.preferences.speak(title);
+            }
+            
         } else if (Notification.permission === "default") {
             document.getElementById('notificationPermission').style.display = 'block';
         }

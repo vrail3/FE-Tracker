@@ -1,88 +1,114 @@
 <!DOCTYPE html>
+
 <html data-theme="dark">
+
 <head>
-    <title>FE Tracker Status</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FE-Tracker </title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
+
 <body>
+
+    <!-- Screensaver -->
     <canvas id="screensaver" class="screensaver"></canvas>
-    <div class="theme-toggle-wrapper">
-        <div class="toggle-tooltip" data-tooltip="Toggle theme">
-            <input type="checkbox" class="theme-toggle theme-toggle" id="themeToggle" onchange="toggleTheme()">
-        </div>
-        <div id="sleepToggleWrapper" class="toggle-tooltip" data-tooltip="Prevent sleep" style="display: none;">
-            <input type="checkbox" class="theme-toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">
-        </div>
-        <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
-            <input type="checkbox" class="theme-toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()">
-        </div>
-        <div class="screensaver-toggle-wrapper toggle-tooltip" data-tooltip="Screensaver">
-            <input type="checkbox" class="theme-toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()">
-        </div>
-    </div>
 
-    <!-- Add notification permission button -->
-    <div id="notificationPermission" class="card" style="display: none;">
-        <h2>Enable Notifications</h2>
-        <button onclick="requestNotificationPermission()" class="purchase-button available" style="margin-top: 1rem;">
-            Enable Desktop Notifications
-        </button>
-    </div>
+    <!-- Controls Section -->
+    <header class="controls-section">
+        <nav class="theme-toggle-wrapper">
 
-    <div class="card status-card">
-        <h1>FE Tracker Status</h1>
-        <div class="metric-row">
-            <span class="metric-label">Status:</span>
-            <span id="status" class="status-ok">loading...</span>
-        </div>
-        <div class="metric-row">
-            <span class="metric-label">Uptime:</span>
-            <span id="uptime" class="metric-value">loading...</span>
-        </div>
-    </div>
-    
-    <div id="purchaseSection" class="card">
-        <h2>Purchase Status</h2>
-        <div class="purchase-section">
-            <a id="purchaseButton" href="#" target="_blank" class="purchase-button">
-                Not Available
-            </a>
-            <div class="auto-open-toggle">
-                <input type="checkbox" id="autoOpenToggle" class="toggle-switch">
-                <label for="autoOpenToggle">Auto-open when available</label>
+            <div class="toggle-tooltip" data-tooltip="Toggle theme">
+                <input type="checkbox" class="theme-toggle" id="themeToggle" onchange="toggleTheme()">
             </div>
-        </div>
-    </div>
 
-    <div class="card">
-        <h2>Metrics</h2>
-        <div class="metric-row">
-            <span class="metric-label">Current SKU:</span>
-            <span id="currentSku" class="metric-value">loading...</span>
-        </div>
-        <div class="metric-row">
-            <span class="metric-label">Errors (1min):</span>
-            <span id="errorRate" class="metric-value">loading...</span>
-        </div>
-        <div class="metric-row">
-            <span class="metric-label">Errors (24h):</span>
-            <span id="errorCount" class="metric-value">loading...</span>
-        </div>
-        <div class="metric-row">
-            <span class="metric-label">API Requests (24h):</span>
-            <span id="apiRequests" class="metric-value">loading...</span>
-        </div>
-        <div class="metric-row">
-            <span class="metric-label">Notifications Sent:</span>
-            <span id="ntfySent" class="metric-value">loading...</span>
-        </div>
-        <div class="metric-row">
-            <span class="metric-label">Start Time:</span>
-            <span id="startTime" class="metric-value">loading...</span>
-        </div>
-    </div>
+            <div id="sleepToggleWrapper" class="toggle-tooltip" data-tooltip="Prevent sleep" style="display: none;">
+                <input type="checkbox" class="theme-toggle sleep-toggle" id="sleepToggle" onchange="toggleSleep()">
+            </div>
+
+            <div class="toggle-tooltip" data-tooltip="Text-To-Speech">
+                <input type="checkbox" class="theme-toggle tts-toggle" id="ttsToggle" onchange="toggleTTS()">
+            </div>
+
+            <div class="screensaver-toggle-wrapper toggle-tooltip" data-tooltip="Screensaver">
+                <input type="checkbox" class="theme-toggle screensaver-toggle" id="screensaverToggle" onchange="toggleScreensaver()">
+            </div>
+
+        </nav>
+    </header>
+
+    <main>
+        <!-- Notification Permission Card -->
+        <section id="notificationPermission" class="card" style="display: none;">
+            <h2>Enable Notifications</h2>
+            <button onclick="requestNotificationPermission()" class="purchase-button available">
+                Enable Desktop Notifications
+            </button>
+        </section>
+
+        <!-- Status Card -->
+        <section class="card status-card">
+            <h1>FE-Tracker</h1>
+            <div class="metric-group">
+                <div class="metric-row">
+                    <span class="metric-label">Status:</span>
+                    <span id="status" class="status-ok">loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Uptime:</span>
+                    <span id="uptime" class="metric-value">loading...</span>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Purchase Section -->
+        <section id="purchaseSection" class="card">
+            <h2>Purchase Status</h2>
+            <div class="purchase-section">
+                <a id="purchaseButton" href="#" target="_blank" class="purchase-button">
+                    Not Available
+                </a>
+                <div class="auto-open-toggle">
+                    <input type="checkbox" id="autoOpenToggle" class="toggle-switch">
+                    <label for="autoOpenToggle">Auto-open when available</label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Metrics Card -->
+        <section class="card">
+            <h2>Metrics</h2>
+            <div class="metric-group">
+                <div class="metric-row">
+                    <span class="metric-label">Current SKU:</span>
+                    <span id="currentSku" class="metric-value">loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Errors (1min):</span>
+                    <span id="errorRate" class="metric-value">loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Errors (24h):</span>
+                    <span id="errorCount" class="metric-value">loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">API Requests (24h):</span>
+                    <span id="apiRequests" class="metric-value">loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Notifications Sent:</span>
+                    <span id="ntfySent" class="metric-value">loading...</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Start Time:</span>
+                    <span id="startTime" class="metric-value">loading...</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
     <script src="/static/script.js"></script>
+
 </body>
 </html>
